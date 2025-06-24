@@ -21,13 +21,23 @@ inline constexpr double DEFAULT_EPSILON = 1e-300;
 
 #endif // DEFAULT_EPSILON_DEFINED
 
+/**
+ * @class GFold
+ * @brief Base class for general protein folding models using statistical mechanics
+ * 
+ * This class provides the fundamental framework for analyzing protein folding
+ * using transfer matrix methods and statistical mechanical approaches. It handles
+ * equilibrium calculations, partition functions, and various probability distributions.
+ */
 class GFold {
 public:
+    /// Character conversion arrays for efficient integer-to-character mapping
     static constexpr std::array<char, 16> INT_TO_CHAR = {
         '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
         'a', 'b', 'c', 'd', 'e', 'f'
     };
     
+    /// Character-to-integer lookup table for fast conversion
     static constexpr std::array<int, 128> CHAR_TO_INT = []() {
         std::array<int, 128> arr{};
         for (int i = 0; i < 10; ++i) arr['0' + i] = i;
@@ -36,51 +46,71 @@ public:
     }();
 
     // Weight Matrices for Equilibrium and Quenched Disorder
-    Eigen::MatrixXd EqSWMatrix;
-    std::vector<std::vector<Eigen::MatrixXd>> QuenchedWeightMatrix;
+    Eigen::MatrixXd EqSWMatrix;                                     ///< Equilibrium sequence-weight transfer matrix
+    std::vector<std::vector<Eigen::MatrixXd>> QuenchedWeightMatrix; ///< Quenched disorder weight matrices
     
     // Start and end vectors, eigenvalues, partition func
-    Eigen::RowVectorXd EqSWstart;
-    Eigen::VectorXd EqSWend;
-    double SWeigenMax;
-    double SWZnum; 
+    Eigen::RowVectorXd EqSWstart;  ///< Starting probability vector for transfer matrix
+    Eigen::VectorXd EqSWend;       ///< Ending probability vector for transfer matrix
+    double SWeigenMax;             ///< Maximum eigenvalue of transfer matrix
+    double SWZnum;                 ///< Numerical partition function
 
+    /// Equilibrium probability matrices for sequence-weight states
     std::vector<Eigen::MatrixXd> EqProbList;
+    /// Conditional probability maps for sequences given previous states
     std::vector<std::vector<Eigen::MatrixXd>> SeqProbMapsCond;
+    /// Single-site probability maps for sequences
     std::vector<Eigen::RowVectorXd> SeqProbMapsSS;
+    /// Equilibrium probability matrices for weight states
     std::vector<Eigen::MatrixXd> WeqProbList;
+    /// Conditional probability maps for weights given previous states
     std::vector<std::vector<Eigen::MatrixXd>> WeqProbMapsCond;
+    /// Single-site probability maps for weights
     std::vector<Eigen::RowVectorXd> WeqProbMapsSS;
 
-    // For Bernoulli p(w) evaluations
-    Matrix<VectorFractionList> start_vec_frac;
-    Matrix<MatrixFraction> indep_mat_frac;
-    Matrix<MatrixFraction> end_vec_frac;
+    // For Bernoulli p(w) evaluations using matrix fractions
+    Matrix<VectorFractionList> start_vec_frac; ///< Starting vector fractions for matrix calculations
+    Matrix<MatrixFraction> indep_mat_frac;     ///< Independent matrix fractions
+    Matrix<MatrixFraction> end_vec_frac;       ///< Ending vector fractions
 
     // Start and End for Quenched Disorder
-    Eigen::RowVectorXd Qstart;
-    Eigen::VectorXd Qend;
+    Eigen::RowVectorXd Qstart;  ///< Starting vector for quenched disorder calculations
+    Eigen::VectorXd Qend;       ///< Ending vector for quenched disorder calculations
 
-    int L; //Real Polymer Length
+    int L; ///< Real polymer length (number of monomers)
     
+    /// Complete equilibrium table with all sequence-weight combinations
     std::vector<std::tuple<std::string, std::string, std::string, double, double>> EquilibriumTable;
-    std::unordered_map<std::string, double> SEquilibriumMap;
-    std::unordered_map<std::string, double> WEquilibriumMap;
-    double EquilibriumValidation;
+    std::unordered_map<std::string, double> SEquilibriumMap; ///< Sequence probability map
+    std::unordered_map<std::string, double> WEquilibriumMap; ///< Weight (fold) probability map
+    double EquilibriumValidation; ///< Sum of all probabilities for validation
 
+    /**
+     * @brief Calculate the dominant eigenvalue of a weight matrix
+     * @param weightMatrix The transfer matrix to analyze
+     * @return The maximum real eigenvalue
+     * 
+     * Uses Eigen's ComplexEigenSolver to find eigenvalues and returns the
+     * maximum real part, which corresponds to the dominant eigenvalue
+     * in the Perron-Frobenius sense for positive matrices.
+     */
     double GetEigen(Eigen::MatrixXd weightMatrix) {
         Eigen::ComplexEigenSolver<Eigen::MatrixXd> ces(weightMatrix);
         Eigen::VectorXcd eigenvals = ces.eigenvalues();
         double maxReal = eigenvals.real().maxCoeff();
-        // By perron frobenius if the entries are all positive no need to worry about imaginary, if all we want is the dominant eigenvalue.
-        // double maxImag = eigenvals.imag().maxCoeff();
-
-        //if (maxImag > 1e-10) {
-        //    throw std::runtime_error("Imaginary Eigenvalue!");
-        //}
         return(maxReal);
     }
 
+    /**
+     * @brief Calculate numerical partition function using matrix multiplication
+     * @param start Starting probability vector
+     * @param end Ending probability vector  
+     * @param weightMatrix Transfer matrix
+     * @return Partition function value
+     * 
+     * Computes Z = start * weightMatrix^(L-1) * end by successive matrix
+     * multiplications. More accurate than eigenvalue method for finite systems.
+     */
     double getNumPartition(Eigen::RowVectorXd start, Eigen::VectorXd end, Eigen::MatrixXd weightMatrix) {
         Eigen::RowVectorXd run = start;
         for (int i = 0; i < L-1; i++) {
@@ -90,26 +120,59 @@ public:
         return(run.dot(end));
     }
 
+    /**
+     * @brief Calculate partition function using dominant eigenvalue approximation
+     * @return Eigenvalue-based partition function
+     * 
+     * Returns λ_max^L where λ_max is the dominant eigenvalue.
+     * Valid in the thermodynamic limit (large L).
+     */
     double eigenPartition() const {
         return std::pow(SWeigenMax, L);
     }
 
+    /**
+     * @brief Calculate free energy per monomer from eigenvalue
+     * @return Free energy G = ln(λ_max)
+     */
     double eigenG() const {
         return std::log(SWeigenMax);
     }
 
+    /**
+     * @brief Calculate free energy per monomer from numerical partition function
+     * @return Free energy G = ln(Z)/L
+     */
     double Gnum() const {
         return std::log(SWZnum)/L;
     }
 
+    /**
+     * @brief Calculate all partition functions for the current model
+     * 
+     * Computes the numerical partition function using the current
+     * transfer matrix and start/end vectors.
+     */
     void CalcAllPartition() {
         SWZnum = getNumPartition(EqSWstart,EqSWend, EqSWMatrix);
     }
 
+    /**
+     * @brief Calculate all eigenvalues for the current model
+     * 
+     * Computes the dominant eigenvalue of the transfer matrix.
+     */
     void CalcAllEigen() {
         SWeigenMax = GetEigen(EqSWMatrix); 
     }
 
+    /**
+     * @brief Generate probability matrices for sequence-weight calculations
+     * 
+     * Creates conditional probability matrices P(state_i | state_{i-1}) for
+     * each position in the chain using backward iteration from the end vector.
+     * These matrices enable efficient calculation of sequence probabilities.
+     */
     void getPSWMatrices() {
         Eigen::MatrixXd CondProb_L_gvn_Lm1 = RowNormalize(multiplytoColVec(EqSWMatrix,EqSWend));
         Eigen::VectorXd backward_iter_vec = EqSWMatrix*EqSWend;
@@ -131,6 +194,14 @@ public:
         std::cout <<std::endl;
     }
 
+    /**
+     * @brief Calculate probability of a sequence-weight combination using precomputed matrices
+     * @param seq Sequence string in internal alphabet
+     * @return Probability P(sequence, weight)
+     * 
+     * Uses the probability matrices generated by getPSWMatrices() to efficiently
+     * calculate the joint probability of any sequence-weight combination.
+     */
     double CalcPSWfromMatrices(std::string seq) {
         double prob = EqProbList[0](CHAR_TO_INT[seq[0]]);
         for (int i = 1; i < L; i++) {
@@ -140,6 +211,14 @@ public:
         return(prob);
     }
 
+    /**
+     * @brief Calculate probability of a sequence using sequence mapping matrices
+     * @param seq Sequence string
+     * @return Marginal probability P(sequence)
+     * 
+     * Computes the probability of observing a particular sequence by summing
+     * over all possible weight (fold) configurations using sequence mapping matrices.
+     */
     double CalcSfromMatrices(std::string seq) {
         Eigen::RowVectorXd prob = (EqProbList[0].array()*SeqProbMapsSS[CHAR_TO_INT[seq[0]]].array()).matrix();
         for (int i = 1; i < L; i++) {
@@ -150,6 +229,14 @@ public:
         return(prob.sum());
     }
 
+    /**
+     * @brief Calculate probability of a weight (fold) configuration using weight mapping matrices
+     * @param seq Sequence string (used to map to weight states)
+     * @return Marginal probability P(weight)
+     * 
+     * Computes the probability of observing a particular fold configuration
+     * by summing over all possible sequences using weight mapping matrices.
+     */
     double CalcWfromMatrices(std::string seq) {
         Eigen::RowVectorXd prob = (EqProbList[0].array()*WeqProbMapsSS[CHAR_TO_INT[seq[0]]].array()).matrix();
         for (int i = 1; i < L; i++) {
@@ -162,16 +249,29 @@ public:
 
 };
 
-
+/**
+ * @class IsingVar
+ * @brief Ising model variant with sequence-to-fold mapping functionality
+ * 
+ * Extends GFold to provide specific implementations for Ising-type models
+ * with explicit mappings between sequence states (S) and weight/fold states (W).
+ * Includes methods for generating equilibrium distributions and analyzing
+ * sequence-structure relationships.
+ */
 class IsingVar : public GFold {
     public:
-    std::unordered_map<char, char> IsingSlookup;
-    std::unordered_map<char, char> IsingWlookup;
+    std::unordered_map<char, char> IsingSlookup; ///< Maps combined SW states to sequence states
+    std::unordered_map<char, char> IsingWlookup; ///< Maps combined SW states to weight states
         // SSlices and Wslices are more convenient when calculating probabilities with 
             // Matrix Fractions 
-    std::unordered_map<char, std::vector<size_t>> IsingSSlices;
-    std::unordered_map<char, std::vector<size_t>> IsingWSlices;
+    std::unordered_map<char, std::vector<size_t>> IsingSSlices; ///< Sequence state index slices
+    std::unordered_map<char, std::vector<size_t>> IsingWSlices; ///< Weight state index slices
 
+    /**
+     * @brief Extract sequence from combined sequence-weight string
+     * @param SW Combined sequence-weight string
+     * @return Pure sequence string
+     */
     std::string GetS(std::string SW){
         std::string ans = "";
         for (char c : SW) {
@@ -180,6 +280,11 @@ class IsingVar : public GFold {
         return(ans);
     }
 
+    /**
+     * @brief Extract weight (fold) configuration from combined sequence-weight string
+     * @param SW Combined sequence-weight string  
+     * @return Pure weight string
+     */
     std::string GetW(std::string SW){
         std::string ans = "";
         for (char c : SW) {
@@ -188,11 +293,24 @@ class IsingVar : public GFold {
         return(ans);
     }
 
+    /**
+     * @brief Generate complete equilibrium distribution table
+     * 
+     * Creates the full equilibrium table containing all possible sequence-weight
+     * combinations with their probabilities and energies. Also generates marginal
+     * distributions for sequences and weights separately.
+     */
     void GetEquilibrumTable() {
         EquilibriumPartitionMapGenerator::generateWithPartition(EquilibriumTable,SEquilibriumMap,WEquilibriumMap,EquilibriumValidation,
             L, EqSWMatrix, EqSWstart, EqSWend, SWZnum, EqSWMatrix.rows(), IsingSlookup, IsingWlookup);
     }
 
+    /**
+     * @brief Print the complete equilibrium table to console
+     * 
+     * Displays all sequence-weight combinations with their probabilities
+     * and energies in a formatted table.
+     */
     void printEquilibriumTable() {
         // Print results
         std::cout << std::left 
@@ -208,6 +326,12 @@ class IsingVar : public GFold {
         }
     }
 
+    /**
+     * @brief Print sequence marginal distribution to console
+     * 
+     * Displays the probability distribution over all possible sequences
+     * and validates that probabilities sum to 1.
+     */
     void printSEquilibriumMap() {
         std::cout << std::left 
                 << std::setw(15) << "s" 
@@ -224,6 +348,12 @@ class IsingVar : public GFold {
         std::cout << sum << std:: endl;
     }
 
+    /**
+     * @brief Print weight (fold) marginal distribution to console
+     * 
+     * Displays the probability distribution over all possible fold configurations
+     * and validates that probabilities sum to 1.
+     */
     void printWEquilibriumMap() {
         std::cout << std::left 
               << std::setw(15) << "w" 
@@ -241,6 +371,12 @@ class IsingVar : public GFold {
         std::cout << "Sum: " << sum << std::endl;
     }
 
+    /**
+     * @brief Print all equilibrium distributions and validation
+     * 
+     * Convenience method that prints the complete equilibrium table,
+     * sequence distribution, and weight distribution with validation sums.
+     */
     void printAll() {
         printEquilibriumTable();
         std::cout << "Sum: " << EquilibriumValidation << std::endl;
@@ -251,6 +387,14 @@ class IsingVar : public GFold {
         std::cout << std::endl;
     }
 
+    /**
+     * @brief Count number of helix residues in a fold configuration
+     * @param fold Fold string where '0' represents helix
+     * @return Number of helix residues
+     * 
+     * Utility function for analyzing secondary structure content.
+     * Assumes '0' represents helix state and '1' represents coil state.
+     */
     static int countHelix(std::string fold) {
         int helix_count = 0;
         for (char c : fold) {
@@ -261,6 +405,14 @@ class IsingVar : public GFold {
         return(helix_count);
     }
 
+    /**
+     * @brief Calculate Bernoulli probability for a binary sequence
+     * @param Prob0 Probability of observing '0' 
+     * @param sequence Binary sequence string
+     * @return Probability under Bernoulli model
+     * 
+     * Computes P(sequence) = ∏ᵢ p^{s_i} (1-p)^{1-s_i} where p = Prob0.
+     */
     static double GetBernoulliProb(double Prob0, std::string sequence){
         double prob = 1;
         for (char c : sequence) {
@@ -273,6 +425,15 @@ class IsingVar : public GFold {
         return(prob);
     }
 
+    /**
+     * @brief Generate probability distribution over all binary sequences using Bernoulli model
+     * @param Prob0 Probability of observing '0' at each position
+     * @param len Length of sequences
+     * @return Map from sequences to their Bernoulli probabilities
+     * 
+     * Creates a complete probability distribution over all 2^len possible
+     * binary sequences using independent Bernoulli trials at each position.
+     */
     static std::unordered_map<std::string,double> GenerateBernoulliMap(double Prob0,int len) {
         std::unordered_map<std::string,double>  SCopyMap;
         // Total number of strings will be 2^L
@@ -293,6 +454,15 @@ class IsingVar : public GFold {
         return SCopyMap;
     }
 
+    /**
+     * @brief Generate random probability distribution over binary sequences
+     * @param seed Random seed for reproducibility
+     * @param len Length of sequences
+     * @return Map from sequences to random probabilities (properly normalized)
+     * 
+     * Creates a random probability distribution by drawing from exponential
+     * distribution and normalizing. Useful for testing and random sampling.
+     */
     static std::unordered_map<std::string,double> SampleRandomProb(unsigned int seed, int len) {
         std::unordered_map<std::string,double>  SCopyMap;
         
@@ -327,6 +497,16 @@ class IsingVar : public GFold {
         return SCopyMap;
     }
 
+    /**
+     * @brief Generate probability distribution from template sequences with error model
+     * @param template_ls List of template sequences
+     * @param err_rate Error rate for deviations from templates
+     * @return Map from sequences to template-based probabilities
+     * 
+     * Creates a probability distribution where sequences similar to the templates
+     * have higher probability. The probability decreases exponentially with
+     * the number of differences from the nearest template.
+     */
     static std::unordered_map<std::string,double> GenerateFromUniformTemplate(std::vector<std::string> template_ls, double err_rate) {
         std::unordered_map<std::string,double>  SCopyMap;
         double template_prob = 1/double(template_ls.size());
@@ -359,6 +539,14 @@ class IsingVar : public GFold {
         return SCopyMap;
     }
 
+    /**
+     * @brief Calculate folding energy for a sequence-weight configuration
+     * @param foldseq Combined sequence-weight string
+     * @return Total folding energy
+     * 
+     * Computes the energy as the negative log of the statistical weights:
+     * E = -∑ᵢ ln(w_{i,i+1}) - ln(w_end)
+     */
     double CalcFoldEnergy(std::string foldseq) {
         double energy = 0.0;
         for (int i = 1; i < L; i++) { 
@@ -370,6 +558,22 @@ class IsingVar : public GFold {
         return energy;
     }
 
+    /**
+     * @brief Comprehensive analysis of sequence distribution vs equilibrium
+     * @param SCopyMapIn Input sequence probability distribution
+     * @return Tuple containing 13 thermodynamic and information-theoretic quantities
+     * 
+     * Performs detailed comparison between an input sequence distribution and
+     * the equilibrium distribution, computing:
+     * - KL divergences for joint, sequence, and weight distributions
+     * - Average helicity in equilibrium and mapped distributions  
+     * - Average energies
+     * - Conditional and marginal entropies
+     * - Various information-theoretic measures
+     * 
+     * Returns tuple: (KL_SW, KL_S, KL_W, EWeq, EWuni, eqEnergy, uniEnergy, 
+     *                eqCondEntropy, uniCondEntropy, HWeq, HWcopy, HSeq, HScopy)
+     */
     std::tuple<double,double,double,double,double,double,double,double,double,double,double,double,double> Results(std::unordered_map<std::string,double> SCopyMapIn) {
         double KL_SW = 0.0;
         double KL_S = 0.0;
@@ -469,6 +673,15 @@ class IsingVar : public GFold {
         return( std::make_tuple(KL_SW,KL_S,KL_W,EWeq,EWuni,eqEnergy,uniEnergy,eqCondEntropy,uniCondEntropy,HWeq,HWcopy,HSeq,HScopy) );
     }
 
+    /**
+     * @brief Same as Results() but also saves fold distributions to files
+     * @param SCopyMapIn Input sequence probability distribution
+     * @param filename Base filename for output files
+     * @return Same tuple as Results()
+     * 
+     * Identical functionality to Results() but additionally saves the
+     * equilibrium and mapped fold distributions to TSV files for later analysis.
+     */
     std::tuple<double,double,double,double,double,double,double,double,double,double,double,double,double> ResultsSaveFoldMap(std::unordered_map<std::string,double> SCopyMapIn, std::string filename) {
         double KL_SW = 0.0;
         double KL_S = 0.0;
@@ -567,6 +780,13 @@ class IsingVar : public GFold {
         return( std::make_tuple(KL_SW,KL_S,KL_W,EWeq,EWuni,eqEnergy,uniEnergy,eqCondEntropy,uniCondEntropy,HWeq,HWcopy,HSeq,HScopy) );
     }
 
+    /**
+     * @brief Verify matrix calculation methods against direct enumeration
+     * 
+     * Cross-validates the matrix-based probability calculations against
+     * the direct enumeration results. Throws runtime_error if discrepancies
+     * exceed numerical precision tolerance (10^-10).
+     */
     void VerifyMatrixApproach() {
         std::cout << "Setting up matrices..." << std::endl;
         
@@ -614,6 +834,13 @@ class IsingVar : public GFold {
 
     }
 
+    /**
+     * @brief Set up sequence probability mapping matrices
+     * 
+     * Creates mapping matrices that relate combined sequence-weight states
+     * to pure sequence states. These matrices enable efficient calculation
+     * of sequence marginal probabilities.
+     */
     void getSEqMatrices() {
         // Find maximum s index
         int SWalphabetsize = IsingSlookup.size();
@@ -645,6 +872,13 @@ class IsingVar : public GFold {
         }
     }
 
+    /**
+     * @brief Set up weight probability mapping matrices
+     * 
+     * Creates mapping matrices that relate combined sequence-weight states
+     * to pure weight states. These matrices enable efficient calculation
+     * of weight marginal probabilities.
+     */
     void getWEqMatrices() {
         // Find maximum s index
         int SWalphabetsize = IsingWlookup.size();
@@ -676,6 +910,18 @@ class IsingVar : public GFold {
         }
     }
 
+    /**
+     * @brief Set up matrix fraction structures for independent sequence model
+     * @param SWalphabetsize Size of combined sequence-weight alphabet
+     * @param ssize Number of sequence states
+     * @param wsize Number of weight states  
+     * @param probs Probability vector for sequence states
+     * @param epsilon Numerical precision parameter
+     * 
+     * Initializes matrix fraction data structures for calculating probabilities
+     * under independent sequence models (e.g., Bernoulli distributions).
+     * These structures enable exact arithmetic for probability calculations.
+     */
     void getIndependentMatrixFractions(int SWalphabetsize,int ssize, int wsize, std::vector<double> probs, double epsilon = DEFAULT_EPSILON) {
         // Initialize the VectorFractionList
         std::vector<std::vector<VectorFractionList>> start_init = std::vector(1,std::vector(SWalphabetsize,VectorFractionList(1,2, epsilon)));
@@ -723,6 +969,15 @@ class IsingVar : public GFold {
         //std::cout << end_vec_frac.toString() << std::endl;
     }
 
+    /**
+     * @brief Calculate weight probability using matrix fractions
+     * @param seq Weight sequence string
+     * @return Probability P(weight) under independent sequence model
+     * 
+     * Uses matrix fraction arithmetic to compute exact probabilities
+     * for weight configurations under independent sequence distributions.
+     * More numerically stable than direct floating-point arithmetic.
+     */
     double CalcWCopyfromMatrixFrac(std::string seq) {
         
         Matrix<VectorFractionList> running = start_vec_frac.slice({0},IsingWSlices[seq[0]]);
@@ -748,6 +1003,15 @@ class IsingVar : public GFold {
         return(result);
     }
 
+    /**
+     * @brief Calculate weight probability and vector complexity using matrix fractions
+     * @param seq Weight sequence string
+     * @return Tuple of (vector_complexity, probability)
+     * 
+     * Same as CalcWCopyfromMatrixFrac but also returns the complexity
+     * (number of terms) in the vector fraction representation, useful
+     * for monitoring computational efficiency.
+     */
     std::tuple<int,double> CalcWCopyandVectorComplexity(std::string seq) {
         Matrix<VectorFractionList> running = start_vec_frac.slice({0},IsingWSlices[seq[0]]);
         for (int i = 1; i < L; i++) { 
@@ -761,6 +1025,15 @@ class IsingVar : public GFold {
         return(std::make_tuple(running(0,0).ls.size()+running(0,1).ls.size(),result));
     }
 
+    /**
+     * @brief Generate quenched probability matrices for a specific sequence
+     * @param sequence Input sequence string
+     * @return Vector of conditional probability matrices for each position
+     * 
+     * Creates position-specific probability matrices for quenched disorder
+     * calculations where the sequence is fixed and we sample over fold
+     * configurations. Uses backward iteration to ensure proper normalization.
+     */
     std::vector<Eigen::MatrixXd> getQuenchedProbList(std::string sequence){
         std::vector<Eigen::MatrixXd> partition_list(L+1);
         std::vector<Eigen::MatrixXd> prob_list(L);
@@ -787,6 +1060,15 @@ class IsingVar : public GFold {
         return(prob_list);
     }
 
+    /**
+     * @brief Evaluate fold probability using quenched probability matrices
+     * @param fold Fold configuration string
+     * @param prob_list Precomputed probability matrices from getQuenchedProbList
+     * @return Conditional probability P(fold|sequence)
+     * 
+     * Efficiently computes the conditional probability of a fold configuration
+     * given a fixed sequence using precomputed probability matrices.
+     */
     double evalQuenchedProbList(std::string fold, std::vector<Eigen::MatrixXd> prob_list){
         double prob = prob_list[0](CHAR_TO_INT[fold[0]]);
         for (int i = 1; i < L; i++) {
@@ -796,6 +1078,16 @@ class IsingVar : public GFold {
         return(prob);
     }
 
+    /**
+     * @brief Sample sequence distribution close to equilibrium
+     * @param tresh Relative threshold for perturbation (e.g., 0.1 for ±10%)
+     * @param gen Random number generator
+     * @return Perturbed sequence distribution map
+     * 
+     * Creates a sequence distribution by randomly perturbing the equilibrium
+     * distribution within specified bounds. Useful for sensitivity analysis
+     * and exploring near-equilibrium behavior.
+     */
     std::unordered_map<std::string,double>  SampleCloseSequenceDist(double tresh, std::mt19937_64& gen){
         std::unordered_map<std::string,double> SCopyMap; 
         double newTotal = 0.0;
@@ -813,6 +1105,15 @@ class IsingVar : public GFold {
         return(SCopyMap);
     }
 
+    /**
+     * @brief Generate random tangent vector on probability simplex
+     * @param seed Random seed for reproducibility
+     * @return Random direction vector orthogonal to equilibrium distribution
+     * 
+     * Samples a random direction on the probability simplex that is orthogonal
+     * to the equilibrium distribution. Used for systematic exploration of
+     * probability space via arc walks.
+     */
     std::unordered_map<std::string,double>  EquilibriumTangentSample(unsigned int seed){
         double dotProd = 0.0;
 
@@ -847,6 +1148,16 @@ class IsingVar : public GFold {
         return(SqrtDirs);
     }
 
+    /**
+     * @brief Perform arc walk on probability simplex
+     * @param tangentVec Tangent direction vector (from EquilibriumTangentSample)
+     * @param angle Arc angle in radians
+     * @return New probability distribution after arc walk
+     * 
+     * Moves along a circular arc on the probability simplex starting from
+     * equilibrium in the direction of tangentVec. Enables systematic
+     * exploration of probability space while maintaining normalization.
+     */
     std::unordered_map<std::string,double>  ArcWalk(std::unordered_map<std::string,double> tangentVec, double angle){
         std::unordered_map<std::string,double> NewProb;
         double Total = 0;
@@ -858,6 +1169,14 @@ class IsingVar : public GFold {
         return(NewProb);
     }
 
+    /**
+     * @brief Find angular limits to stay in positive orthant
+     * @param tangentVec Tangent direction vector
+     * @return Pair of (lower_limit, upper_limit) angles in radians
+     * 
+     * Calculates the range of angles for arc walks that keep all probabilities
+     * positive. Essential for ensuring physical validity during exploration.
+     */
     std::pair<double,double>  PositiveOrthantLimits(std::unordered_map<std::string,double> tangentVec){
         std::unordered_map<std::string,double> NewProb;
         double lowlim = -3.142;
@@ -887,6 +1206,15 @@ class IsingVar : public GFold {
         return(std::pair(lowlim,highlim));
     }
 
+    /**
+     * @brief Decompose probability distribution into equilibrium component and tangent vector
+     * @param SCopyMap Input probability distribution
+     * @return Pair of (tangent_vector, angle) for arc representation
+     * 
+     * Decomposes an arbitrary probability distribution into its projection
+     * onto the equilibrium distribution and a tangent component. Enables
+     * representation as an arc walk from equilibrium.
+     */
     std::pair<std::unordered_map<std::string,double>,double>  GetVectorAndArc(std::unordered_map<std::string,double> SCopyMap){
         std::unordered_map<std::string,double> vector;
         double dotprod = 0.0;
@@ -915,8 +1243,26 @@ class IsingVar : public GFold {
     }
 };
 
+/**
+ * @class Ising2
+ * @brief Two-state Ising model for helix-coil transitions
+ * 
+ * Implements a specific two-state model where each residue can be in
+ * helix (0) or coil (1) conformation. Provides multiple constructor
+ * variants for different parameterizations and includes specialized
+ * methods for Bernoulli sequence analysis and quenched disorder studies.
+ */
 class Ising2 : public IsingVar {
     public:
+    /**
+     * @brief Constructor with explicit helix-helix and coil parameters
+     * @param w00 Helix-helix interaction energy
+     * @param w11 Coil-coil interaction energy  
+     * @param w01 Helix-coil interaction energy
+     * @param w10 Coil-helix interaction energy
+     * @param v End effects parameter
+     * @param l Polymer length
+     */
     Ising2(double w00, double w11, double w01, double w10, double v, int l) {
         EqSWstart =  Eigen::Vector4d(1, 1, 1, 1); // Start just sums up, does not correspond to first monomer 
         EqSWend = Eigen::Vector4d(v, 1, v, 1); // End corresponds to last monomer
@@ -942,12 +1288,6 @@ class Ising2 : public IsingVar {
             {'3', '1'}
         };
 
-        /*EqSWMatrix << w00, 0.001, w01, v,
-                      0.001,   0.001, 1,   1,
-                      w10, v, w11, v,
-                      1,   1, 1,   1;
-        */
-
         EqSWMatrix << w00, v, w01, v,
                       1,   1, 1,   1,
                       w10, v, w11, v,
@@ -955,11 +1295,19 @@ class Ising2 : public IsingVar {
         
         L = l;
 
-
         CalcAllEigen();
         CalcAllPartition();
     }
 
+    /**
+     * @brief Constructor with state-specific weights and couplings
+     * @param w0 Weight for state 0 (helix)
+     * @param w1 Weight for state 1 (coil)
+     * @param c0 Coupling for state 0
+     * @param c1 Coupling for state 1  
+     * @param l Polymer length
+     * @param placehold Placeholder parameter (unused)
+     */
     Ising2(double w0, double w1, double c0, double c1, int l, std::string placehold) {
         EqSWstart =  Eigen::Vector4d(1, 1, 1, 1); // Start just sums up, does not correspond to first monomer 
         EqSWend = Eigen::Vector4d(w0, c0, w1, c1); // End corresponds to last monomer
@@ -985,12 +1333,6 @@ class Ising2 : public IsingVar {
             {'3', '1'}
         };
 
-        /*EqSWMatrix << w00, 0.001, w01, v,
-                      0.001,   0.001, 1,   1,
-                      w10, v, w11, v,
-                      1,   1, 1,   1;
-        */
-
         EqSWMatrix << w0, w0, w0,  w0,
                       c0,  c0, c0,  c0,
                       w1,  w1, w1, w1,
@@ -998,11 +1340,18 @@ class Ising2 : public IsingVar {
         
         L = l;
 
-
         CalcAllEigen();
         CalcAllPartition();
     }
 
+    /**
+     * @brief Constructor with diagonal helix-helix and coil-coil interactions
+     * @param w00 Helix-helix interaction strength
+     * @param w11 Coil-coil interaction strength
+     * @param c0 Helix coupling parameter
+     * @param c1 Coil coupling parameter
+     * @param l Polymer length
+     */
     Ising2(double w00, double w11, double c0, double c1, int l) {
         EqSWstart =  Eigen::Vector4d(1, 1, 1, 1); // Start just sums up, does not correspond to first monomer 
         EqSWend = Eigen::Vector4d(c0, c0, c1, c1); // End corresponds to last monomer
@@ -1028,12 +1377,6 @@ class Ising2 : public IsingVar {
             {'3', '1'}
         };
 
-        /*EqSWMatrix << w00, 0.001, w01, v,
-                      0.001,   0.001, 1,   1,
-                      w10, v, w11, v,
-                      1,   1, 1,   1;
-        */
-
         EqSWMatrix << w00, c0, c0,  c0,
                       c0,  c0, c0,  c0,
                       c1,  c1, w11, c1,
@@ -1041,11 +1384,18 @@ class Ising2 : public IsingVar {
         
         L = l;
 
-
         CalcAllEigen();
         CalcAllPartition();
     }
 
+    /**
+     * @brief Constructor with random parameters for testing
+     * @param seed Random seed for parameter generation
+     * @param l Polymer length
+     * 
+     * Creates a model with randomly generated parameters drawn from
+     * uniform distribution [1,10]. Useful for testing and validation.
+     */
      Ising2(unsigned int seed, int l) {
         
         std::mt19937_64 gen(seed);
@@ -1076,12 +1426,6 @@ class Ising2 : public IsingVar {
             {'3', '1'}
         };
 
-        /*EqSWMatrix << w00, 0.001, w01, v,
-                      0.001,   0.001, 1,   1,
-                      w10, v, w11, v,
-                      1,   1, 1,   1;
-        */
-
         // Fill the matrix with random integers
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 4; j++) {
@@ -1098,11 +1442,18 @@ class Ising2 : public IsingVar {
         std::cout << EqSWMatrix << std::endl;
         L = l;
 
-
         CalcAllEigen();
         CalcAllPartition();
     }
 
+    /**
+     * @brief Set up matrix fractions for Bernoulli sequence model
+     * @param bernoulli Probability of state 0 in Bernoulli model
+     * @param epsilon Numerical precision parameter
+     * 
+     * Initializes matrix fraction calculations for analyzing systems
+     * where sequences are drawn from a Bernoulli distribution.
+     */
     void getBernoulliMatrixFractions(double bernoulli, double epsilon = DEFAULT_EPSILON){
         int SWalphabetsize = IsingSlookup.size();
 
@@ -1116,6 +1467,17 @@ class Ising2 : public IsingVar {
         getIndependentMatrixFractions(SWalphabetsize,ssize, wsize, probs, epsilon);
     }
 
+    /**
+     * @brief Sample sequence and fold from quenched Bernoulli model
+     * @param p Bernoulli parameter for sequence generation
+     * @param gen Random number generator
+     * @return Tuple of (sequence, fold, total_probability)
+     * 
+     * Generates a random sequence from Bernoulli(p) distribution, then
+     * samples the corresponding fold configuration from the conditional
+     * distribution P(fold|sequence). Returns the sequence, fold, and
+     * total sampling probability.
+     */
     std::tuple<std::string,std::string, double> SampleQuenchedBernoulli(double p, std::mt19937_64& gen) {
         std::bernoulli_distribution d(p);
         
@@ -1148,11 +1510,19 @@ class Ising2 : public IsingVar {
         }
 
         return(std::make_tuple(sequence,fold,ps+pw));
-        //std::cout << EqProbList[0] << std::endl;
-        //std::cout <<std::endl;
-        
     }
 
+    /**
+     * @brief Generate multiple Bernoulli sequences
+     * @param p Bernoulli parameter  
+     * @param N Number of sequences to generate
+     * @param L Length of each sequence
+     * @param seed Random seed
+     * @return Vector of generated sequences
+     * 
+     * Static method for generating multiple independent sequences
+     * from Bernoulli distribution. Useful for batch processing.
+     */
     static std::vector<std::string> SampleNBernoulliSequence(double p, int N, int L, unsigned int seed) {
         std::mt19937_64 gen(seed);
         std::bernoulli_distribution d(p);
@@ -1171,11 +1541,19 @@ class Ising2 : public IsingVar {
         }
         
         return(sampled_sequences);
-        //std::cout << EqProbList[0] << std::endl;
-        //std::cout <<std::endl;
-        
     }
 
+    /**
+     * @brief Generate multiple biased Bernoulli sequences
+     * @param p Bernoulli parameter
+     * @param N Number of sequences to generate  
+     * @param L Length of each sequence
+     * @param seed Random seed (also determines bias direction)
+     * @return Vector of generated sequences
+     * 
+     * Generates sequences with bias toward '0' or '1' based on seed parity.
+     * Used for testing systematic biases in sequence generation.
+     */
     static std::vector<std::string> SampleNBiasedBernoulliSequence(double p, int N, int L, unsigned int seed) {
         std::mt19937_64 gen(seed);
         std::bernoulli_distribution d(p);
@@ -1196,11 +1574,18 @@ class Ising2 : public IsingVar {
         }
         
         return(sampled_sequences);
-        //std::cout << EqProbList[0] << std::endl;
-        //std::cout <<std::endl;
-        
     }
 
+    /**
+     * @brief Verify matrix calculations for quenched disorder model
+     * @param SCopyMap Input sequence distribution
+     * @param p Bernoulli parameter for validation sampling
+     * @param trials Number of Monte Carlo trials for validation
+     * 
+     * Cross-validates matrix-based calculations against Monte Carlo sampling
+     * for quenched disorder systems. Compares theoretical predictions with
+     * empirical estimates from random sampling.
+     */
     void VerifyMatrixApproachQuenched(std::unordered_map<std::string,double> SCopyMap, double p, int trials) {
         std::cout << "Setting up matrices..." << std::endl;
         
@@ -1284,6 +1669,16 @@ class Ising2 : public IsingVar {
         std::cout << "Estimated Fold Entropy of " << fold_entropy_est << " Versus True " << FoldcopyEntropy <<std::endl;
     }
 
+    /**
+     * @brief Sample entropy estimates from Bernoulli model
+     * @param p Bernoulli parameter
+     * @param trials Number of sampling trials
+     * @param seed Random seed  
+     * @return Tuple of (joint_mean, joint_stddev, fold_mean, fold_stddev)
+     * 
+     * Estimates joint and fold entropies through Monte Carlo sampling,
+     * returning both means and standard deviations for statistical analysis.
+     */
     std::tuple<double,double,double,double> SampleBernoulliEntropies(double p, int trials, int seed) {
         getBernoulliMatrixFractions(0.1);
 
@@ -1309,8 +1704,30 @@ class Ising2 : public IsingVar {
     }
 };
 
+/**
+ * @class Ising2S3F
+ * @brief Extended Ising model with 2 sequence states and 3 fold states
+ * 
+ * Implements a more complex model where each residue can be in one of
+ * two sequence states but three different fold conformations (helix,
+ * antihelix, coil). Allows for more detailed analysis of secondary
+ * structure preferences.
+ */
 class Ising2S3F : public IsingVar {
     public:
+    /**
+     * @brief Constructor for 2-sequence, 3-fold state model
+     * @param w00 Helix-helix interaction energy for sequence state 0
+     * @param w11 Helix-helix interaction energy for sequence state 1  
+     * @param a01 Antihelix interaction energy (state 0 to 1)
+     * @param a10 Antihelix interaction energy (state 1 to 0)
+     * @param v End effects parameter
+     * @param l Polymer length
+     * 
+     * Creates a model with 6 combined states:
+     * - States 0,1,2: Sequence state 0 with fold states helix, antihelix, coil
+     * - States 3,4,5: Sequence state 1 with fold states helix, antihelix, coil
+     */
     Ising2S3F(double w00, double w11, double a01, double a10, double v, int l) { 
         IsingSlookup = {
             {'0', '0'},
@@ -1351,77 +1768,3 @@ class Ising2S3F : public IsingVar {
         CalcAllPartition();
     }
 };
-
-/*int main() {
-     // Initialize Ising model
-    std::random_device rd;
-    std::mt19937 gen(11125689);
-
-    Ising2 ISInst(2.0, 2.0, 0.1, 0.1, 0.1, 100);
-    
-    ISInst.CalcAllPartition();
-    // Calculate and print results
-    double eigenG = ISInst.eigenG();
-    double gNum = ISInst.Gnum();
-    
-    std::cout << "EigenG SW: " << eigenG << std::endl;
-    std::cout << "Gnum SW: " << gNum << std::endl;
-    
-    // Calculate transfer probabilities
-    //ISInst.eqTransferProb();
-    //for_each(ISInst.eqCondProb.begin(), ISInst.eqCondProb.end(), [](Eigen::MatrixXd i) {
-    //      std::cout << i << std::endl;
-    //});
-
-    ISInst.SampleSequence(10,0.3,gen);
-    for(int i = 0; i < 7; i++){
-        for(int j = 0; j < 7; j++){
-            std::cout<< ISInst.SequenceList[i][j] <<" ";
-        }
-        std::cout<<std::endl;
-    }
-}*/
-
-// Functions which are not yet useful
-
-/*std::vector<Eigen::MatrixXd> eqTransferProb(Eigen::RowVectorXd start, Eigen::VectorXd end, Eigen::MatrixXd weightMatrix) {
-        std::vector<Eigen::VectorXd> backwardrun(L);
-        std::vector<Eigen::MatrixXd> eqCondProb;
-        eqCondProb.resize(L);
-
-        backwardrun[L-1] = end;
-
-        for (int i = 1; i < L; i++) {
-            backwardrun[L-i-1] = weightMatrix * backwardrun[L-i];
-        }
-        
-        for (int i = 0; i < L; i++) {
-            Eigen::MatrixXd VMprod = weightMatrix;
-            for (int j = 0; j < VMprod.rows(); j++) {
-                std::cout << weightMatrix.row(j) << std::endl;
-                VMprod.row(j) = weightMatrix.row(j).cwiseProduct(backwardrun[i].transpose());
-            }
-            
-            Eigen::VectorXd rowSums = VMprod.rowwise().sum();
-            for (int j = 0; j < VMprod.rows(); j++) {
-                VMprod.row(j) /= rowSums(j);
-            }
-            
-            eqCondProb[i] = VMprod;
-        }
-        
-        eqCondProb[0] = start * eqCondProb[0];
-        
-        return eqCondProb;
-    }
-*/
-/*
-void SampleSequence(int num, double prob,std::mt19937 gen){
-        std::bernoulli_distribution bernoulli_dist(prob);
-        std::vector<std::vector<int>> vecs(num,std::vector<int>(L));
-        for (int n = 0; n < num; n++)
-            for (int l = 0; l < L; l++)
-                vecs[n][l] = int(bernoulli_dist(gen)) + 1;
-        SequenceList = vecs;
-    }
-*/
