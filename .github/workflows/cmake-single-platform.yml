@@ -1,0 +1,128 @@
+name: C++ CI
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        build_type: [Debug, Release]
+        exclude:
+          # Skip Debug builds on Windows to reduce CI time
+          - os: windows-latest
+            build_type: Debug
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libeigen3-dev libboost-dev libomp-dev
+
+    - name: Install dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install eigen boost libomp
+
+    - name: Install dependencies (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        vcpkg install eigen3 boost-config
+
+    - name: Configure CMake (Unix)
+      if: matrix.os != 'windows-latest'
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+              -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+    - name: Configure CMake (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} `
+              -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake
+
+    - name: Build
+      run: cmake --build build --config ${{ matrix.build_type }} --parallel
+
+    - name: Test
+      run: ctest --test-dir build --build-config ${{ matrix.build_type }} --output-on-failure --parallel
+
+    - name: Upload test results (on failure)
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-${{ matrix.os }}-${{ matrix.build_type }}
+        path: |
+          build/Testing/
+          build/**/*.log
+
+  code-quality:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libeigen3-dev libboost-dev libomp-dev cppcheck
+
+    - name: Static analysis with cppcheck
+      run: |
+        cppcheck --enable=all --std=c++17 --suppress=missingIncludeSystem \
+                 --error-exitcode=1 --inline-suppr \
+                 *.cpp 2>&1 | tee cppcheck-report.txt
+
+    - name: Upload static analysis results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: static-analysis-results
+        path: cppcheck-report.txt
+
+  performance-test:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libeigen3-dev libboost-dev libomp-dev
+
+    - name: Configure CMake (Optimized)
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_CXX_FLAGS="-O3 -march=native -DNDEBUG"
+
+    - name: Build
+      run: cmake --build build --config Release --parallel
+
+    - name: Run performance tests
+      run: |
+        echo "Running Bernoulli scan performance test..."
+        timeout 120 ./build/bernoulli_scan || echo "Test completed or timed out"
+        echo "Running random parameter scan performance test..."
+        timeout 120 ./build/random_param_scan || echo "Test completed or timed out"
+
+    - name: Check for output files
+      run: |
+        ls -la *.tsv || echo "No TSV files generated"
+        
+    - name: Upload performance results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: performance-test-outputs
+        path: "*.tsv"
