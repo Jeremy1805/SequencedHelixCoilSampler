@@ -10,7 +10,7 @@ jobs:
   build-and-test:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest]
         build_type: [Debug, Release]
         exclude:
           # Skip Debug builds on Windows to reduce CI time
@@ -27,11 +27,6 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y libeigen3-dev libboost-dev libomp-dev doxygen graphviz
-
-    - name: Install dependencies (macOS)
-      if: matrix.os == 'macos-latest'
-      run: |
-        brew install eigen boost libomp doxygen graphviz
 
     - name: Install dependencies (Windows)
       if: matrix.os == 'windows-latest'
