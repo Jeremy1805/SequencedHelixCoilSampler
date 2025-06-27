@@ -26,23 +26,24 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
-        sudo apt-get install -y libeigen3-dev libboost-dev libomp-dev
+        sudo apt-get install -y libeigen3-dev libboost-dev libomp-dev doxygen graphviz
 
     - name: Install dependencies (macOS)
       if: matrix.os == 'macos-latest'
       run: |
-        brew install eigen boost libomp
+        brew install eigen boost libomp doxygen graphviz
 
     - name: Install dependencies (Windows)
       if: matrix.os == 'windows-latest'
       run: |
         vcpkg install eigen3 boost-config
+        choco install doxygen.install graphviz
 
     - name: Configure CMake (Unix)
       if: matrix.os != 'windows-latest'
       run: |
         cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-              -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+              -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=TRUE
 
     - name: Configure CMake (Windows)
       if: matrix.os == 'windows-latest'
@@ -74,7 +75,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libeigen3-dev libboost-dev libomp-dev cppcheck
+        sudo apt-get install -y libeigen3-dev libboost-dev libomp-dev doxygen graphviz cppcheck doxygen graphviz
 
     - name: Static analysis with cppcheck
       run: |
