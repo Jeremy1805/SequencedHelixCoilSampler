@@ -8,51 +8,22 @@ on:
 
 jobs:
   build-and-test:
+    runs-on: ubuntu-latest
+    
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
         build_type: [Debug, Release]
-        exclude:
-          - os: windows-latest
-            build_type: Debug
-
-    runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Install dependencies (Ubuntu)
-      if: matrix.os == 'ubuntu-latest'
+    - name: Install dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y libeigen3-dev libomp-dev doxygen graphviz
 
-    - name: Setup vcpkg (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        # Update vcpkg to latest version
-        cd C:\vcpkg
-        git pull
-        .\bootstrap-vcpkg.bat
-        
-    - name: Install dependencies (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        # Install required packages with vcpkg
-        C:\vcpkg\vcpkg.exe install eigen3:x64-windows
-        # Install tools via chocolatey
-        choco install doxygen.install graphviz
-
-    - name: Configure CMake (Ubuntu)
-      if: matrix.os == 'ubuntu-latest'
+    - name: Configure CMake
       run: cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-
-    - name: Configure CMake (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} `
-              -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake `
-              -DVCPKG_TARGET_TRIPLET=x64-windows
 
     - name: Build
       run: cmake --build build --config ${{ matrix.build_type }} --parallel
