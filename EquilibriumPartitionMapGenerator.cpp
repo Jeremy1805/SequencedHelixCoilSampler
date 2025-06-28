@@ -9,6 +9,11 @@
 #include <unsupported/Eigen/MatrixFunctions>
 #include <array>
 
+#ifdef _MSC_VER
+    // MSVC doesn't have __builtin_expect, so make it a no-op
+    #define __builtin_expect(expr, expected) (expr)
+#endif
+
 /**
  * @class EquilibriumPartitionMapGenerator
  * @brief High-performance generator for complete equilibrium partition tables
