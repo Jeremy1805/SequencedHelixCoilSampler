@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <Eigen/Dense>
 #include <iostream>
-#include <boost/config/assert_cxx17.hpp>
 #include <set>
 
 #ifndef DEFAULT_EPSILON_DEFINED
