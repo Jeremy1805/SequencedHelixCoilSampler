@@ -12,7 +12,7 @@ endif()
 
 # Find required packages
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
-find_package(OpenMP)
+find_package(OpenMP REQUIRED)
 find_package(Doxygen QUIET)
 
 # Compiler-specific options
@@ -21,17 +21,27 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -march=native")
 endif()
 
-# Test executables
-add_executable(bernoulli_scan BernoulliScan.cpp)
-add_executable(random_param_scan RandomParamErrorScan.cpp)
+# Test executables - include source files from src directory
+add_executable(bernoulli_scan 
+    tests/BernoulliScan.cpp
+    src/Utilities.cpp
+    src/EquilibriumPartitionMapGenerator.cpp
+    src/FoldModels.cpp
+    src/CustomMatrix.cpp
+)
 
-# Link libraries to both executables
+add_executable(random_param_scan 
+    tests/RandomParamErrorScan.cpp
+    src/Utilities.cpp
+    src/EquilibriumPartitionMapGenerator.cpp
+    src/FoldModels.cpp
+    src/CustomMatrix.cpp
+)
+
+# Add include directory so source files can find each other
 foreach(target bernoulli_scan random_param_scan)
-    target_link_libraries(${target} Eigen3::Eigen)
-    
-    if(OpenMP_CXX_FOUND)
-        target_link_libraries(${target} OpenMP::OpenMP_CXX)
-    endif()
+    target_include_directories(${target} PRIVATE src)
+    target_link_libraries(${target} Eigen3::Eigen OpenMP::OpenMP_CXX)
 endforeach()
 
 # Enable testing
@@ -48,9 +58,9 @@ message(STATUS "  C++ standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "  Compiler: ${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "  Eigen3 version: ${Eigen3_VERSION}")
 if(OpenMP_CXX_FOUND)
-    message(STATUS "  OpenMP: Found")
+    message(STATUS "  OpenMP: ${OpenMP_CXX_VERSION}")
 else()
-    message(STATUS "  OpenMP: Not found")
+    message(FATAL_ERROR "  OpenMP: REQUIRED but not found!")
 endif()
 if(DOXYGEN_FOUND)
     message(STATUS "  Doxygen: Found")
