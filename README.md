@@ -1,13 +1,13 @@
-# HelixCoilSampler
+# SequencedHelixCoilSampler
 
-**Advanced Statistical Mechanics Simulation for Protein Helix-Coil Transitions**
+**Statistical Mechanics Simulation for Sequenced Protein Helix-Coil Models**
 
 [![C++](https://img.shields.io/badge/C%2B%2B-17-blue.svg)](https://isocpp.org/)
 [![Eigen](https://img.shields.io/badge/Eigen-3.0%2B-green.svg)](https://eigen.tuxfamily.org/)
 
 ## Overview
 
-HelixCoilSampler is a high-performance C++ implementation for analyzing protein secondary structure transitions using statistical mechanical models. The software provides exact solutions for helix-coil equilibrium dynamics through transfer matrix methods and enables comprehensive analysis of sequence-dependent folding patterns.
+SequencedHelixCoilSampler is a C++ implementation for analyzing protein secondary structure transitions using statistical mechanical models. The software provides exact solutions for sequenced helix-coil equilibrium dynamics through transfer matrix methods and enables comprehensive analysis of sequence-dependent folding patterns.
 
 ### Key Features
 
