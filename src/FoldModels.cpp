@@ -961,8 +961,8 @@ Ising2::Ising2(double w00, double w11, double w01, double w10, double v, int l) 
     CalcAllEigen();
     CalcAllPartition();
 }
-
-Ising2::Ising2(double w0, double w1, double c0, double c1, int l) {
+// Same parameter set, different matrices. placehold is a trick.
+Ising2::Ising2(double w0, double w1, double c0, double c1, int l, std::string placehold) {
     EqSWstart =  Eigen::Vector4d(1, 1, 1, 1);
     EqSWend = Eigen::Vector4d(w0, c0, w1, c1);
 
