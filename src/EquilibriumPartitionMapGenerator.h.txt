@@ -1,0 +1,91 @@
+#ifndef EQUILIBRIUMPARTITIONMAPGENERATOR_H
+#define EQUILIBRIUMPARTITIONMAPGENERATOR_H
+
+#include <vector>
+#include <string>
+#include <iostream>
+#include <functional>
+#include <iomanip>
+#include <utility>
+#include <unordered_map>
+#include <Eigen/Dense>
+#include <unsupported/Eigen/MatrixFunctions>
+#include <array>
+
+#ifdef _MSC_VER
+    #define __builtin_expect(expr, expected) (expr)
+#endif
+
+/**
+ * @class EquilibriumPartitionMapGenerator
+ * @brief High-performance generator for complete equilibrium partition tables
+ */
+class EquilibriumPartitionMapGenerator {
+    static constexpr std::array<char, 16> INT_TO_CHAR = {
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+        'a', 'b', 'c', 'd', 'e', 'f'
+    };
+    
+    static constexpr std::array<int, 128> CHAR_TO_INT = []() {
+        std::array<int, 128> arr{};
+        for (int i = 0; i < 10; ++i) arr['0' + i] = i;
+        for (int i = 0; i < 6; ++i) arr['a' + i] = 10 + i;
+        return arr;
+    }();
+
+public:
+    /**
+     * @struct PartitionState
+     * @brief Memory-aligned state container for partition calculations
+     */
+    struct alignas(16) PartitionState {
+        double value;
+        char lastChar;
+        
+        constexpr PartitionState(double v = 0.0, char c = '0') noexcept 
+            : value(v), lastChar(c) {}
+    };
+
+    static inline char intToChar(int i) noexcept {
+        return INT_TO_CHAR[i];
+    }
+    
+    static inline int charToInt(char c) noexcept {
+        return CHAR_TO_INT[c];
+    }
+
+    static inline void generateRecursiveTail(
+        std::vector<std::tuple<std::string, std::string, std::string, double, double>>& results,
+        std::string& current,
+        std::string& sequence,
+        std::string& fold,
+        const int* sequence_lookup,
+        const int* fold_lookup,
+        std::unordered_map<std::string, double>& sequence_hash,
+        std::unordered_map<std::string, double>& fold_hash,
+        double& validation,
+        const int position,
+        const PartitionState& parentState,
+        const Eigen::MatrixXd& weightMatrix,
+        const Eigen::RowVectorXd& start,
+        const Eigen::VectorXd& end,
+        const double normalization,
+        const int alphabetSize,
+        const int length);
+
+    static void generateWithPartition(
+            std::vector<std::tuple<std::string, std::string, std::string, double, double>>& results,
+            std::unordered_map<std::string,double>& sequence_hash,
+            std::unordered_map<std::string,double>& fold_hash,
+            double& validation,
+            const int length,
+            const Eigen::MatrixXd& weightMatrix,
+            const Eigen::RowVectorXd& start,
+            const Eigen::VectorXd& end,
+            const double normalization,
+            const int alphabetSize,
+            const std::unordered_map<char,char>& sequence_lookup,
+            const std::unordered_map<char,char>& fold_lookup);
+};
+
+#endif // EQUILIBRIUMPARTITIONMAPGENERATOR_H

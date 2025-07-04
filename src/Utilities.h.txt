@@ -1,0 +1,107 @@
+#ifndef UTILITIES_H
+#define UTILITIES_H
+
+#include <vector>
+#include <complex>
+#include <cmath>
+#include <stdexcept>
+#include <iostream>
+#include <chrono>
+#include <string>
+#include <iomanip>
+#include <fstream>
+#include <unordered_map>
+#include <random>    
+#include <Eigen/Dense>
+#include <tuple>
+#include <sstream>
+
+/**
+ * @class Timer
+ * @brief High-resolution timing utility for performance measurement
+ */
+class Timer {
+private:
+    using Clock = std::chrono::high_resolution_clock;
+    using TimePoint = Clock::time_point;
+    using Duration = std::chrono::duration<double>;
+
+    std::string name;
+    TimePoint start_time;
+
+public:
+    Timer(const std::string& name = "Timer");
+    double elapsed() const;
+    void reset();
+    ~Timer();
+};
+
+// Function declarations
+std::string escapeTab(const std::string& str);
+Eigen::MatrixXd multiplytoColVec(const Eigen::MatrixXd& matrix, const Eigen::VectorXd& vector);
+Eigen::MatrixXd RowNormalize(const Eigen::MatrixXd& matrix);
+Eigen::MatrixXd multiplyfromRowVec(const Eigen::RowVectorXd& rowvec, const Eigen::MatrixXd& matrix);
+Eigen::MatrixXd sliceMatrix(const Eigen::MatrixXd& M, 
+                           const std::vector<size_t>& rows,
+                           const std::vector<size_t>& cols);
+double bernoulliStringProb(const std::string& s, double p);
+int drawFromProbVector(const Eigen::RowVectorXd& probs, std::mt19937_64& gen);
+
+// Template functions - keep implementations in header
+template<typename... T>
+void saveTuplesToCSV(const std::vector<std::tuple<T...>>& data, 
+                     const std::string& filename,
+                     const std::vector<std::string>& headers = {}) {
+    std::ofstream file(filename);
+    
+    if (!file.is_open()) {
+        throw std::runtime_error("Could not open file: " + filename);
+    }
+    
+    file.precision(15);
+    file << std::scientific;
+
+    if (!headers.empty()) {
+        for (size_t i = 0; i < headers.size(); ++i) {
+            file << headers[i];
+            if (i < headers.size() - 1) file << "\t";
+        }
+        file << "\n";
+    }
+
+    for (const auto& tuple : data) {
+        std::apply([&file](const auto&... args) {
+            size_t idx = 0;
+            ((file << args << (++idx != sizeof...(T) ? "\t" : "")), ...);
+        }, tuple);
+        file << "\n";
+    }
+
+    file.close();
+}
+
+template<typename K, typename V>
+bool saveMapToTSV(const std::unordered_map<K, V>& map, const std::string& filename) {
+    std::ofstream file(filename);
+    
+    if (!file.is_open()) {
+        std::cerr << "Error: Could not open file " << filename << std::endl;
+        return false;
+    }
+    
+    file << "Key\tValue\n";
+    
+    for (const auto& pair : map) {
+        std::ostringstream keyStr, valueStr;
+        keyStr << pair.first;
+        valueStr << pair.second;
+        
+        file << escapeTab(keyStr.str()) << "\t" 
+             << escapeTab(valueStr.str()) << "\n";
+    }
+    
+    file.close();
+    return true;
+}
+
+#endif // UTILITIES_H
