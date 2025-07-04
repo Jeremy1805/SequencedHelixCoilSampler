@@ -7,6 +7,9 @@
 #include <string>
 #include <iomanip>
 #include <fstream>
+#include <unordered_map>
+#include <random>    
+#include <Eigen/Dense>
 
 /**
  * @class Timer
