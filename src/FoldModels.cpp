@@ -892,7 +892,7 @@ Ising2::Ising2(const Eigen::MatrixXd& transferMatrix,
     if (endVector.size() != 4) {
         throw std::invalid_argument("Ising2 requires 4-element end vector");
     }
-    if (polymerLength <= 0) {
+    if (l <= 0) {
         throw std::invalid_argument("Polymer length must be positive");
     }
     
@@ -1284,7 +1284,7 @@ Ising2S3F::Ising2S3F(const Eigen::MatrixXd& transferMatrix,
     if (endVector.size() != 6) {
         throw std::invalid_argument("Ising2S3F requires 6-element end vector");
     }
-    if (polymerLength <= 0) {
+    if (l <= 0) {
         throw std::invalid_argument("Polymer length must be positive");
     }
     
