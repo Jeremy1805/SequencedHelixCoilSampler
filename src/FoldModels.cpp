@@ -879,6 +879,8 @@ Ising2::Ising2(const Eigen::MatrixXd& transferMatrix,
        const Eigen::RowVectorXd& startVector,
        const Eigen::VectorXd& endVector,
        int l) {
+  
+    validateMatrices(transferMatrix, startVector, endVector, "Ising2");
     
     // Validate input dimensions
     if (transferMatrix.rows() != 4 || transferMatrix.cols() != 4) {
@@ -960,7 +962,7 @@ Ising2::Ising2(double w00, double w11, double w01, double w10, double v, int l) 
     CalcAllPartition();
 }
 
-Ising2::Ising2(double w0, double w1, double c0, double c1, int l, std::string placehold) {
+Ising2::Ising2(double w0, double w1, double c0, double c1, int l) {
     EqSWstart =  Eigen::Vector4d(1, 1, 1, 1);
     EqSWend = Eigen::Vector4d(w0, c0, w1, c1);
 
@@ -1320,6 +1322,8 @@ Ising2S3F::Ising2S3F(const Eigen::MatrixXd& transferMatrix,
 }
 
 Ising2S3F::Ising2S3F(double w00, double w11, double a01, double a10, double v, int l) { 
+    validateMatrices(transferMatrix, startVector, endVector, "Ising2S3F");
+  
     IsingSlookup = {
         {'0', '0'},
         {'1', '0'},
