@@ -10,6 +10,7 @@
 #include <tuple>
 #include <omp.h>
 #include "FoldModels.h"
+#include "Utilities.h"
 
 int main() {
     Timer t1("Full operation");
