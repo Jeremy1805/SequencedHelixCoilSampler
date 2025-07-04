@@ -1,13 +1,4 @@
-#include <vector>
-#include <string>
-#include <iostream>
-#include <functional>
-#include <iomanip>
-#include <utility>
-#include <unordered_map>
-#include <Eigen/Dense>
-#include <unsupported/Eigen/MatrixFunctions>
-#include <array>
+#include "EquilibriumPartitionMapGenerator.h"
 
 #ifdef _MSC_VER
     // MSVC doesn't have __builtin_expect, so make it a no-op
