@@ -12,7 +12,7 @@
 #include <Eigen/Dense>
 #include <nlohmann/json.hpp>
 #include <muParser.h>
-#include "FoldModels.cpp"
+#include "FoldModels.h"
 
 using json = nlohmann::json;
 
