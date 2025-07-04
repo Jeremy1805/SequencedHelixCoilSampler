@@ -1272,7 +1272,8 @@ Ising2S3F::Ising2S3F(const Eigen::MatrixXd& transferMatrix,
           const Eigen::RowVectorXd& startVector,
           const Eigen::VectorXd& endVector,
           int l) {
-    
+    validateMatrices(transferMatrix, startVector, endVector, "Ising2S3F");
+  
     // Validate input dimensions  
     if (transferMatrix.rows() != 6 || transferMatrix.cols() != 6) {
         throw std::invalid_argument("Ising2S3F requires 6x6 transfer matrix");
@@ -1322,8 +1323,6 @@ Ising2S3F::Ising2S3F(const Eigen::MatrixXd& transferMatrix,
 }
 
 Ising2S3F::Ising2S3F(double w00, double w11, double a01, double a10, double v, int l) { 
-    validateMatrices(transferMatrix, startVector, endVector, "Ising2S3F");
-  
     IsingSlookup = {
         {'0', '0'},
         {'1', '0'},
