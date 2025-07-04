@@ -24,7 +24,7 @@
 #include <string>
 #include <unordered_map>
 #include <tuple>
-#include "FoldModels.cpp"
+#include "FoldModels.h"
 #include <omp.h>
 
 /**
