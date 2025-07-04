@@ -43,7 +43,7 @@ add_executable(random_param_scan
 )
 
 # Add include directory so source files can find each other
-foreach(target bernoulli_scan random_param_scan configurable_scanner)
+foreach(target bernoulli_scan random_param_scan)
     target_include_directories(${target} PRIVATE src ${MUPARSER_INCLUDE_DIRS})
     target_link_libraries(${target} 
         Eigen3::Eigen 
