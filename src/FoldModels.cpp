@@ -811,6 +811,55 @@ std::pair<std::unordered_map<std::string,double>,double> IsingVar::GetVectorAndA
 }
 
 // Ising2 constructor implementations
+Ising2(const Eigen::MatrixXd& transferMatrix,
+       const Eigen::RowVectorXd& startVector,
+       const Eigen::VectorXd& endVector,
+       int polymerLength) {
+    
+    // Validate input dimensions
+    if (transferMatrix.rows() != 4 || transferMatrix.cols() != 4) {
+        throw std::invalid_argument("Ising2 requires 4x4 transfer matrix");
+    }
+    if (startVector.size() != 4) {
+        throw std::invalid_argument("Ising2 requires 4-element start vector");
+    }
+    if (endVector.size() != 4) {
+        throw std::invalid_argument("Ising2 requires 4-element end vector");
+    }
+    if (polymerLength <= 0) {
+        throw std::invalid_argument("Polymer length must be positive");
+    }
+    
+    // Set up state mappings (same as other Ising2 constructors)
+    IsingSlookup = {
+        {'0', '0'},
+        {'1', '0'},
+        {'2', '1'},
+        {'3', '1'}
+    };
+
+    IsingWlookup = {
+        {'0', '0'},
+        {'1', '1'},
+        {'2', '0'},
+        {'3', '1'}
+    };
+    
+    // Set matrix values directly
+    EqSWMatrix = transferMatrix;
+    EqSWstart = startVector;
+    EqSWend = endVector;
+    L = polymerLength;
+    
+    // Initialize other members
+    Qstart = Eigen::Vector2d::Zero();
+    Qend = Eigen::Vector2d::Zero();
+    
+    // Calculate derived quantities
+    CalcAllEigen();
+    CalcAllPartition();
+}
+
 Ising2::Ising2(double w00, double w11, double w01, double w10, double v, int l) {
     EqSWstart =  Eigen::Vector4d(1, 1, 1, 1);
     EqSWend = Eigen::Vector4d(v, 1, v, 1);
