@@ -811,7 +811,7 @@ std::pair<std::unordered_map<std::string,double>,double> IsingVar::GetVectorAndA
 }
 
 // Ising2 constructor implementations
-Ising2(const Eigen::MatrixXd& transferMatrix,
+Ising2::Ising2(const Eigen::MatrixXd& transferMatrix,
        const Eigen::RowVectorXd& startVector,
        const Eigen::VectorXd& endVector,
        int l) {
@@ -1201,7 +1201,60 @@ std::tuple<double,double,double,double> Ising2::SampleBernoulliEntropies(double 
     return(std::make_tuple(joint_mean,joint_stddev,fold_mean,fold_stddev));
 }
 
-// Ising2S3F constructor implementation
+// Ising2S3F constructor implementations
+Ising2S3F::Ising2S3F(const Eigen::MatrixXd& transferMatrix,
+          const Eigen::RowVectorXd& startVector,
+          const Eigen::VectorXd& endVector,
+          int l) {
+    
+    // Validate input dimensions  
+    if (transferMatrix.rows() != 6 || transferMatrix.cols() != 6) {
+        throw std::invalid_argument("Ising2S3F requires 6x6 transfer matrix");
+    }
+    if (startVector.size() != 6) {
+        throw std::invalid_argument("Ising2S3F requires 6-element start vector");
+    }
+    if (endVector.size() != 6) {
+        throw std::invalid_argument("Ising2S3F requires 6-element end vector");
+    }
+    if (polymerLength <= 0) {
+        throw std::invalid_argument("Polymer length must be positive");
+    }
+    
+    // Set up state mappings (same as other Ising2S3F constructors)
+    IsingSlookup = {
+        {'0', '0'},
+        {'1', '0'},
+        {'2', '0'},
+        {'3', '1'},
+        {'4', '1'},
+        {'5', '1'}
+    };
+
+    IsingWlookup = {
+        {'0', '0'},
+        {'1', '1'},
+        {'2', '2'},
+        {'3', '0'},
+        {'4', '1'},
+        {'5', '2'}
+    };
+    
+    // Set matrix values directly
+    EqSWMatrix = transferMatrix;
+    EqSWstart = startVector;
+    EqSWend = endVector;
+    L = l;
+    
+    // Initialize other members
+    Qstart = Eigen::VectorXd::Zero(2);
+    Qend = Eigen::VectorXd::Zero(2);
+    
+    // Calculate derived quantities
+    CalcAllEigen();
+    CalcAllPartition();
+}
+
 Ising2S3F::Ising2S3F(double w00, double w11, double a01, double a10, double v, int l) { 
     IsingSlookup = {
         {'0', '0'},
