@@ -814,7 +814,7 @@ std::pair<std::unordered_map<std::string,double>,double> IsingVar::GetVectorAndA
 Ising2(const Eigen::MatrixXd& transferMatrix,
        const Eigen::RowVectorXd& startVector,
        const Eigen::VectorXd& endVector,
-       int polymerLength) {
+       int l) {
     
     // Validate input dimensions
     if (transferMatrix.rows() != 4 || transferMatrix.cols() != 4) {
@@ -849,7 +849,7 @@ Ising2(const Eigen::MatrixXd& transferMatrix,
     EqSWMatrix = transferMatrix;
     EqSWstart = startVector;
     EqSWend = endVector;
-    L = polymerLength;
+    L = l;
     
     // Initialize other members
     Qstart = Eigen::Vector2d::Zero();
