@@ -54,52 +54,6 @@ public:
 };
 
 /**
- * @brief Save vector of tuples to tab-separated value file
- * @tparam T Variadic template for tuple types
- * @param data Vector of tuples containing data to save
- * @param filename Output filename
- * @param headers Optional vector of column headers
- * 
- * Template function that can save any vector of tuples to a TSV file.
- * Automatically handles different tuple types and ensures high precision
- * for scientific data. Uses scientific notation for floating-point values.
- */
-template<typename... T>
-void saveTuplesToCSV(const std::vector<std::tuple<T...>>& data, 
-                     const std::string& filename,
-                     const std::vector<std::string>& headers = {}) {
-    std::ofstream file(filename);
-    
-    if (!file.is_open()) {
-        throw std::runtime_error("Could not open file: " + filename);
-    }
-    
-    // Set precision for floating-point numbers to ensure accuracy
-    file.precision(15);
-    file << std::scientific;
-
-    // Write headers if provided
-    if (!headers.empty()) {
-        for (size_t i = 0; i < headers.size(); ++i) {
-            file << headers[i];
-            if (i < headers.size() - 1) file << "\t";
-        }
-        file << "\n";
-    }
-
-    // Write data using fold expression (C++17)
-    for (const auto& tuple : data) {
-        std::apply([&file](const auto&... args) {
-            size_t idx = 0;
-            ((file << args << (++idx != sizeof...(T) ? "\t" : "")), ...);
-        }, tuple);
-        file << "\n";
-    }
-
-    file.close();
-}
-
-/**
  * @brief Escape tab characters in string fields
  * @param str Input string that may contain tabs
  * @return String with tabs replaced by spaces
@@ -123,44 +77,6 @@ std::string escapeTab(const std::string& str) {
         pos++;
     }
     return escaped;
-}
-
-/**
- * @brief Save unordered_map to tab-separated value file
- * @tparam K Key type
- * @tparam V Value type  
- * @param map Input map to save
- * @param filename Output filename
- * @return True if successful, false otherwise
- * 
- * Template function for saving any unordered_map to a TSV file.
- * Handles arbitrary key and value types by converting them to strings.
- * Includes proper tab escaping to prevent format corruption.
- */
-template<typename K, typename V>
-bool saveMapToTSV(const std::unordered_map<K, V>& map, const std::string& filename) {
-    std::ofstream file(filename);
-    
-    if (!file.is_open()) {
-        std::cerr << "Error: Could not open file " << filename << std::endl;
-        return false;
-    }
-    
-    // Write header
-    file << "Key\tValue\n";
-    
-    // Write data with proper escaping
-    for (const auto& pair : map) {
-        std::ostringstream keyStr, valueStr;
-        keyStr << pair.first;
-        valueStr << pair.second;
-        
-        file << escapeTab(keyStr.str()) << "\t" 
-             << escapeTab(valueStr.str()) << "\n";
-    }
-    
-    file.close();
-    return true;
 }
 
 /**
