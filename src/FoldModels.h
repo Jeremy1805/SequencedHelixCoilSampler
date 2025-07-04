@@ -376,9 +376,29 @@ public:
  */
 class Ising2 : public IsingVar {
 public:
+
+    /**
+     * @brief Direct matrix constructor for Ising2 model
+     * 
+     * Creates an Ising2 model instance with explicitly provided transfer matrix
+     * and boundary vectors, bypassing the parameter-based constructors.
+     * 
+     * @param transferMatrix 4x4 transfer matrix for sequence-weight state transitions
+     *                       Row i, Column j = probability of transitioning from state i to state j
+     *                       States ordered as: [seq0-fold0, seq0-fold1, seq1-fold0, seq1-fold1]
+     * @param startVector 4-element starting probability vector
+     *                    Element i = probability of starting in state i
+     *                    Should sum to a positive value
+     * @param endVector 4-element ending weight vector  
+     *                  Element i = terminal weight for ending in state i
+     *                  Represents boundary conditions at the chain terminus
+     * @param polymerLength Number of monomers in the polymer chain
+     */
+    Ising2(const Eigen::MatrixXd& transferMatrix, const Eigen::RowVectorXd& startVector, const Eigen::VectorXd& endVector, int l);
+    
     /**
      * @brief Constructor with explicit helix-helix and coil parameters
-     * @param w00 Helix-helix interaction energy
+     * @param w00 Helix-helix interaction energy for 00
      * @param w11 Coil-coil interaction energy  
      * @param w01 Helix-coil interaction energy
      * @param w10 Coil-helix interaction energy
