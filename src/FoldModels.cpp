@@ -1,25 +1,8 @@
-#include <vector>
-#include <complex>
-#include <cmath>
-#include <stdexcept>
-#include <iostream>
-#include <Eigen/Dense>
-#include <random>
-#include <string>
-#include <unordered_map>
-#include <tuple>
-#include "EquilibriumPartitionMapGenerator.cpp"
-#include "Utilities.cpp"
+#include "FoldModels.h"
+#include "EquilibriumPartitionMapGenerator.h"
+#include "Utilities.h"      
+#include "CustomMatrix.h"               
 #include <omp.h>
-#include "CustomMatrix.cpp"
-#include <random>
-
-#ifndef DEFAULT_EPSILON_DEFINED
-#define DEFAULT_EPSILON_DEFINED
-
-inline constexpr double DEFAULT_EPSILON = 1e-300;
-
-#endif // DEFAULT_EPSILON_DEFINED
 
 /**
  * @class GFold
