@@ -14,6 +14,10 @@ endif()
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(OpenMP REQUIRED)
 find_package(Doxygen QUIET)
+find_package(nlohmann_json 3.2.0 REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(MUPARSER REQUIRED muparser)
+
 
 # Compiler-specific options
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -27,6 +31,7 @@ add_executable(bernoulli_scan
     src/Utilities.cpp
     src/EquilibriumPartitionMapGenerator.cpp
     src/FoldModels.cpp
+    src/ConfigurableScanner.cpp
 )
 
 add_executable(random_param_scan 
@@ -34,12 +39,19 @@ add_executable(random_param_scan
     src/Utilities.cpp
     src/EquilibriumPartitionMapGenerator.cpp
     src/FoldModels.cpp
+    src/ConfigurableScanner.cpp
 )
 
 # Add include directory so source files can find each other
-foreach(target bernoulli_scan random_param_scan)
-    target_include_directories(${target} PRIVATE src)
-    target_link_libraries(${target} Eigen3::Eigen OpenMP::OpenMP_CXX)
+foreach(target bernoulli_scan random_param_scan configurable_scanner)
+    target_include_directories(${target} PRIVATE src ${MUPARSER_INCLUDE_DIRS})
+    target_link_libraries(${target} 
+        Eigen3::Eigen 
+        OpenMP::OpenMP_CXX 
+        nlohmann_json::nlohmann_json
+        ${MUPARSER_LIBRARIES}
+    )
+    target_compile_options(${target} PRIVATE ${MUPARSER_CFLAGS_OTHER})
 endforeach()
 
 # Enable testing
