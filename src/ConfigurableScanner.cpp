@@ -107,52 +107,6 @@ Config parseConfig(const std::string& filename) {
     return config;
 }
 
-// Matrix validation implementation
-void validateMatrices(const Eigen::MatrixXd& transferMatrix,
-                     const Eigen::RowVectorXd& startVector,
-                     const Eigen::VectorXd& endVector,
-                     const std::string& modelName) {
-    
-    // Check for NaN or infinite values
-    if (!transferMatrix.allFinite()) {
-        throw std::invalid_argument(modelName + ": Transfer matrix contains NaN or infinite values");
-    }
-    if (!startVector.allFinite()) {
-        throw std::invalid_argument(modelName + ": Start vector contains NaN or infinite values");
-    }
-    if (!endVector.allFinite()) {
-        throw std::invalid_argument(modelName + ": End vector contains NaN or infinite values");
-    }
-    
-    // Check non-negativity (required for statistical weights)
-    if ((transferMatrix.array() < 0.0).any()) {
-        throw std::invalid_argument(modelName + ": Transfer matrix contains negative values");
-    }
-    if ((endVector.array() < 0.0).any()) {
-        throw std::invalid_argument(modelName + ": End vector contains negative values");
-    }
-    
-    // Check that start vector can be normalized (at least one positive element)
-    if (startVector.sum() <= 0.0) {
-        throw std::invalid_argument(modelName + ": Start vector sum is non-positive");
-    }
-    
-    // Check matrix is square
-    if (transferMatrix.rows() != transferMatrix.cols()) {
-        throw std::invalid_argument(modelName + ": Transfer matrix is not square");
-    }
-    
-    // Check vector dimensions match matrix
-    if (startVector.size() != transferMatrix.cols()) {
-        throw std::invalid_argument(modelName + ": Start vector size doesn't match matrix columns");
-    }
-    if (endVector.size() != transferMatrix.rows()) {
-        throw std::invalid_argument(modelName + ": End vector size doesn't match matrix rows");
-    }
-    
-    std::cout << "Matrix validation passed for " << modelName << std::endl;
-}
-
 // Matrix building implementations
 Eigen::MatrixXd buildMatrix(const std::vector<std::vector<std::string>>& matrixConfig,
                            const std::map<std::string, double>& params) {
