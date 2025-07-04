@@ -414,9 +414,8 @@ public:
      * @param c0 Coupling for state 0
      * @param c1 Coupling for state 1  
      * @param l Polymer length
-     * @param placehold Placeholder parameter (unused)
      */
-    Ising2(double w0, double w1, double c0, double c1, int l, std::string placehold);
+    Ising2(double w0, double w1, double c0, double c1, int l);
 
     /**
      * @brief Constructor with diagonal helix-helix and coil-coil interactions
