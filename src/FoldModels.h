@@ -500,6 +500,29 @@ public:
 class Ising2S3F : public IsingVar {
 public:
     /**
+     * @brief Direct matrix constructor for Ising2S3F model
+     * 
+     * Add this constructor to the Ising2S3F class in FoldModels.cpp
+     * 
+     * Creates an Ising2S3F (2 sequence states, 3 fold states) model instance 
+     * with explicitly provided transfer matrix and boundary vectors.
+     * 
+     * @param transferMatrix 6x6 transfer matrix for sequence-weight state transitions
+     *                       Row i, Column j = probability of transitioning from state i to state j
+     *                       States ordered as: [seq0-fold0, seq0-fold1, seq0-fold2, 
+     *                                          seq1-fold0, seq1-fold1, seq1-fold2]
+     *                       Where fold states are: 0=helix, 1=antihelix, 2=coil
+     * @param startVector 6-element starting probability vector
+     *                    Element i = probability of starting in state i
+     *                    Should sum to a positive value
+     * @param endVector 6-element ending weight vector
+     *                  Element i = terminal weight for ending in state i
+     *                  Represents boundary conditions at the chain terminus
+     * @param l Number of monomers in the polymer chain
+     * ```
+     */
+    Ising2S3F(const Eigen::MatrixXd& transferMatrix, const Eigen::RowVectorXd& startVector, const Eigen::VectorXd& endVector, int l);
+    /**
      * @brief Constructor for 2-sequence, 3-fold state model
      * @param w00 Helix-helix interaction energy for sequence state 0
      * @param w11 Helix-helix interaction energy for sequence state 1  
