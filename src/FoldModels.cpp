@@ -4,6 +4,70 @@
 #include "CustomMatrix.h"               
 #include <omp.h>
 
+
+/**
+ * @brief Validate matrix properties for physical consistency
+ * 
+ * Performs basic sanity checks on transfer matrices and boundary vectors
+ * to ensure they represent valid statistical mechanical models.
+ * 
+ * @param transferMatrix Transfer matrix to validate
+ * @param startVector Starting vector to validate  
+ * @param endVector Ending vector to validate
+ * @param modelName Name of the model (for error messages)
+ * 
+ * @throws std::invalid_argument if matrices fail validation
+ * 
+ * Validation checks:
+ * - All matrix elements are non-negative (required for probabilities)
+ * - Matrix is square and properly sized
+ * - Start vector has positive elements that can be normalized
+ * - End vector has non-negative elements
+ * - No NaN or infinite values
+ */
+void validateMatrices(const Eigen::MatrixXd& transferMatrix,
+                     const Eigen::RowVectorXd& startVector,
+                     const Eigen::VectorXd& endVector,
+                     const std::string& modelName) {
+    
+    // Check for NaN or infinite values
+    if (!transferMatrix.allFinite()) {
+        throw std::invalid_argument(modelName + ": Transfer matrix contains NaN or infinite values");
+    }
+    if (!startVector.allFinite()) {
+        throw std::invalid_argument(modelName + ": Start vector contains NaN or infinite values");
+    }
+    if (!endVector.allFinite()) {
+        throw std::invalid_argument(modelName + ": End vector contains NaN or infinite values");
+    }
+    
+    // Check non-negativity (required for statistical weights)
+    if ((transferMatrix.array() <= 0.0).any()) {
+        throw std::invalid_argument(modelName + ": Transfer matrix contains non-positive values");
+    }
+    if ((endVector.array() <= 0.0).any()) {
+        throw std::invalid_argument(modelName + ": End vector contains non-positive values");
+    }
+    if ((startVector.array() <= 0.0).any()) {
+        throw std::invalid_argument(modelName + ": Start vector contains non-positive values");
+    }
+    
+    // Check matrix is square
+    if (transferMatrix.rows() != transferMatrix.cols()) {
+        throw std::invalid_argument(modelName + ": Transfer matrix is not square");
+    }
+    
+    // Check vector dimensions match matrix
+    if (startVector.size() != transferMatrix.cols()) {
+        throw std::invalid_argument(modelName + ": Start vector size doesn't match matrix columns");
+    }
+    if (endVector.size() != transferMatrix.rows()) {
+        throw std::invalid_argument(modelName + ": End vector size doesn't match matrix rows");
+    }
+    
+    std::cout << "Matrix validation passed for " << modelName << std::endl;
+}
+
 // Static member definitions for GFold
 constexpr std::array<char, 16> GFold::INT_TO_CHAR;
 constexpr std::array<int, 128> GFold::CHAR_TO_INT;
