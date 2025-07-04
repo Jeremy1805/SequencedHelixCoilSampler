@@ -27,7 +27,6 @@ add_executable(bernoulli_scan
     src/Utilities.cpp
     src/EquilibriumPartitionMapGenerator.cpp
     src/FoldModels.cpp
-    src/CustomMatrix.cpp
 )
 
 add_executable(random_param_scan 
@@ -35,7 +34,6 @@ add_executable(random_param_scan
     src/Utilities.cpp
     src/EquilibriumPartitionMapGenerator.cpp
     src/FoldModels.cpp
-    src/CustomMatrix.cpp
 )
 
 # Add include directory so source files can find each other
