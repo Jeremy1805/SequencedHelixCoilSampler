@@ -1,4 +1,5 @@
-#pragma once
+#ifndef CONFIGURABLESCANNER_H
+#define CONFIGURABLESCANNER_H
 
 #include <vector>
 #include <string>
@@ -111,29 +112,6 @@ Eigen::MatrixXd buildMatrix(const std::vector<std::vector<std::string>>& matrixC
 Eigen::VectorXd buildVector(const std::vector<std::string>& vectorConfig,
                            const std::map<std::string, double>& params);
 
-// Validation functions
-
-/**
- * @brief Validate matrix properties for physical consistency
- * @param transferMatrix Transfer matrix to validate
- * @param startVector Starting vector to validate  
- * @param endVector Ending vector to validate
- * @param modelName Name of the model (for error messages)
- * @throws std::invalid_argument if matrices fail validation
- * 
- * Validation checks:
- * - All matrix elements are non-negative (required for statistical weights)
- * - Matrix is square and properly sized
- * - Start vector has positive elements that can be normalized
- * - End vector has non-negative elements
- * - No NaN or infinite values
- * - Vector dimensions match matrix size
- */
-void validateMatrices(const Eigen::MatrixXd& transferMatrix,
-                     const Eigen::RowVectorXd& startVector,
-                     const Eigen::VectorXd& endVector,
-                     const std::string& modelName);
-
 // Scan execution functions
 
 /**
@@ -167,3 +145,5 @@ void performBernoulliScan(const Config& config, const std::string& outputFilenam
  * @throws std::runtime_error if templates are missing or model creation fails
  */
 void performErrorScan(const Config& config, const std::string& outputFilename);
+
+#endif
