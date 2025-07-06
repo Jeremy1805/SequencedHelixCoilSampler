@@ -18,16 +18,14 @@ find_package(nlohmann_json 3.2.0 REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(MUPARSER REQUIRED muparser)
 
-
 # Compiler-specific options
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wextra")
     set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -march=native")
 endif()
 
-# Test executables - include source files from src directory
-add_executable(bernoulli_scan 
-    tests/BernoulliScan.cpp
+# Main executable
+add_executable(main
     src/main.cpp
     src/Utilities.cpp
     src/EquilibriumPartitionMapGenerator.cpp
@@ -35,31 +33,29 @@ add_executable(bernoulli_scan
     src/ConfigurableScanner.cpp
 )
 
-add_executable(random_param_scan 
-    tests/RandomParamErrorScan.cpp
-    src/main.cpp
-    src/Utilities.cpp
-    src/EquilibriumPartitionMapGenerator.cpp
-    src/FoldModels.cpp
-    src/ConfigurableScanner.cpp
+# Add include directory and link libraries
+target_include_directories(main PRIVATE include ${MUPARSER_INCLUDE_DIRS})
+target_link_libraries(main
+    Eigen3::Eigen 
+    OpenMP::OpenMP_CXX 
+    nlohmann_json::nlohmann_json
+    ${MUPARSER_LIBRARIES}
 )
-
-# Add include directory so source files can find each other
-foreach(target bernoulli_scan random_param_scan)
-    target_include_directories(${target} PRIVATE include ${MUPARSER_INCLUDE_DIRS})
-    target_link_libraries(${target} 
-        Eigen3::Eigen 
-        OpenMP::OpenMP_CXX 
-        nlohmann_json::nlohmann_json
-        ${MUPARSER_LIBRARIES}
-    )
-    target_compile_options(${target} PRIVATE ${MUPARSER_CFLAGS_OTHER})
-endforeach()
+target_compile_options(main PRIVATE ${MUPARSER_CFLAGS_OTHER})
 
 # Enable testing
 enable_testing()
-add_test(NAME bernoulli_scan_test COMMAND bernoulli_scan)
-add_test(NAME random_param_scan_test COMMAND random_param_scan)
+
+# Add tests that run main with different config files
+add_test(NAME bernoulli_test 
+    COMMAND main config/bernoulli_test.json
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
+add_test(NAME error_test 
+    COMMAND main config/error_test.json
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
 
 # Print configuration summary
 message(STATUS "")
