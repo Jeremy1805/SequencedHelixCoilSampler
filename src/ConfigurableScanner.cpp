@@ -75,6 +75,8 @@ Config parseConfig(const std::string& filename) {
     config.y_param_range.start = y_param.at("start").get<double>();
     config.y_param_range.end = y_param.at("end").get<double>();
     config.y_param_range.step = y_param.at("step").get<double>();
+
+    config.x_var_is_log = j.at("x_var_is_log").get<double>()
     
     // Parse energy matrix (2D array of strings)
     auto energy_matrix_json = j.at("energy_matrix");
