@@ -23,5 +23,5 @@
         "step": 0.1
     },
     "templates": ["00110100111","01100100100","00000000000"],
-    "x_var_is_log": "true"
+    "x_var_is_log": true
 }
