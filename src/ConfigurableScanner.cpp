@@ -178,11 +178,7 @@ void performBernoulliScan(const Config& config, const std::string& outputFilenam
         }
         // Generate Bernoulli distribution for this x_param value
         std::unordered_map<std::string,double> SCopyMap;
-        if (config.x_param_range.name == "bernoulli_prob") {
-            SCopyMap = IsingVar::GenerateBernoulliMap(true_x_param, config.length);
-        } else {
-            throw std::runtime_error("Unsupported x_param for Bernoulli scan: " + config.x_param_range.name + (config.x_var_is_log? "(. Note x is assumed log2(true x), 2^x used)":". Note x is true x, no log assumed."));
-        }
+        SCopyMap = IsingVar::GenerateBernoulliMap(true_x_param, config.length);
         
         for (double y_param = config.y_param_range.start; y_param < config.y_param_range.end; y_param += config.y_param_range.step) {
             
@@ -261,14 +257,7 @@ void performErrorScan(const Config& config, const std::string& outputFilename) {
         
         // Generate template-based distribution for this x_param value
         std::unordered_map<std::string,double> SCopyMap;
-        if (config.x_param_range.name == "error_rate") {
-            SCopyMap = IsingVar::GenerateFromUniformTemplate(config.templates, x_param);
-        } else if (config.x_param_range.name == "log_error") {
-            double error_rate = std::pow(2.0, x_param);
-            SCopyMap = IsingVar::GenerateFromUniformTemplate(config.templates, error_rate);
-        } else {
-            throw std::runtime_error("Unsupported x_param for Error scan: " + config.x_param_range.name + (config.x_var_is_log? "(. Note x is assumed log2(true x), 2^x used)":". Note x is true x, no log assumed."));
-        }
+        SCopyMap = IsingVar::GenerateFromUniformTemplate(config.templates, true_x_param);
         
         for (double y_param = config.y_param_range.start; y_param < config.y_param_range.end; y_param += config.y_param_range.step) {
             
