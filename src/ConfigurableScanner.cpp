@@ -170,13 +170,18 @@ void performBernoulliScan(const Config& config, const std::string& outputFilenam
     
     // Nested loops over parameter ranges
     for (double x_param = config.x_param_range.start; x_param < config.x_param_range.end; x_param += config.x_param_range.step) {
-        
+        double true_x_param;
+        if(config.x_var_is_log){
+            true_x_param = pow(2,x_param);
+        } else {
+            true_x_param = x_param;
+        }
         // Generate Bernoulli distribution for this x_param value
         std::unordered_map<std::string,double> SCopyMap;
         if (config.x_param_range.name == "bernoulli_prob") {
-            SCopyMap = IsingVar::GenerateBernoulliMap(x_param, config.length);
+            SCopyMap = IsingVar::GenerateBernoulliMap(true_x_param, config.length);
         } else {
-            throw std::runtime_error("Unsupported x_param for Bernoulli scan: " + config.x_param_range.name);
+            throw std::runtime_error("Unsupported x_param for Bernoulli scan: " + config.x_param_range.name + (config.x_var_is_log? "(. Note x is assumed log2(true x), 2^x used)":". Note x is true x, no log assumed."));
         }
         
         for (double y_param = config.y_param_range.start; y_param < config.y_param_range.end; y_param += config.y_param_range.step) {
@@ -243,6 +248,13 @@ void performErrorScan(const Config& config, const std::string& outputFilename) {
     }
     
     std::vector<std::tuple<double,double,double,double,double,double,double,double,double,double,double,double,double,double,double>> results;
+
+    double true_x_param;
+    if(config.x_var_is_log){
+        true_x_param = pow(2,x_param);
+    } else {
+            true_x_param = x_param;
+    }
     
     // Nested loops over parameter ranges
     for (double x_param = config.x_param_range.start; x_param < config.x_param_range.end; x_param += config.x_param_range.step) {
@@ -255,7 +267,7 @@ void performErrorScan(const Config& config, const std::string& outputFilename) {
             double error_rate = std::pow(2.0, x_param);
             SCopyMap = IsingVar::GenerateFromUniformTemplate(config.templates, error_rate);
         } else {
-            throw std::runtime_error("Unsupported x_param for Error scan: " + config.x_param_range.name);
+            throw std::runtime_error("Unsupported x_param for Error scan: " + config.x_param_range.name + (config.x_var_is_log? "(. Note x is assumed log2(true x), 2^x used)":". Note x is true x, no log assumed."));
         }
         
         for (double y_param = config.y_param_range.start; y_param < config.y_param_range.end; y_param += config.y_param_range.step) {
