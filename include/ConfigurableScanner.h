@@ -30,7 +30,7 @@ struct Config {
     std::vector<std::string> start_vector;               ///< Starting vector expressions
     std::vector<std::string> end_vector;                 ///< Ending vector expressions
     int length;                     ///< Polymer length
-    bool x_var_is_log;
+    bool x_var_is_log; /// If true, then the exponential 2^x is used as the true x variable. 
     
     /**
      * @brief Parameter range specification
