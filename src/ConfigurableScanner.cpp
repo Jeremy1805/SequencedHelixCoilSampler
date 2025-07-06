@@ -1,4 +1,5 @@
 #include "ConfigurableScanner.h"
+#include "Utilities.h"
 #include <vector>
 #include <string>
 #include <unordered_map>
