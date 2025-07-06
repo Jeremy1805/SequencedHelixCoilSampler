@@ -178,9 +178,6 @@ void performBernoulliScan(const Config& config, const std::string& outputFilenam
             auto start_vec = buildVector(config.start_vector, params);
             auto end_vec = buildVector(config.end_vector, params);
             
-            // Validate matrices before creating model
-            validateMatrices(matrix, start_vec.transpose(), end_vec, config.fold_model);
-            
             // Create model instance using direct constructor
             std::unique_ptr<IsingVar> model;
             if (config.fold_model == "Ising2") {
@@ -250,9 +247,6 @@ void performErrorScan(const Config& config, const std::string& outputFilename) {
             auto matrix = buildMatrix(config.energy_matrix, params);
             auto start_vec = buildVector(config.start_vector, params);
             auto end_vec = buildVector(config.end_vector, params);
-            
-            // Validate matrices before creating model
-            validateMatrices(matrix, start_vec.transpose(), end_vec, config.fold_model);
             
             // Create model instance using direct constructor
             std::unique_ptr<IsingVar> model;
@@ -356,9 +350,6 @@ void performBernoulliScan(const Config& config, const std::string& outputFilenam
             auto start_vec = buildVector(config.start_vector, params);
             auto end_vec = buildVector(config.end_vector, params);
             
-            // Validate matrices before creating model
-            validateMatrices(matrix, start_vec.transpose(), end_vec, config.fold_model);
-            
             // Create model instance using direct constructor
             std::unique_ptr<IsingVar> model;
             if (config.fold_model == "Ising2") {
@@ -438,130 +429,12 @@ void performErrorScan(const Config& config, const std::string& outputFilename) {
             auto start_vec = buildVector(config.start_vector, params);
             auto end_vec = buildVector(config.end_vector, params);
             
-            // Validate matrices before creating model
-            validateMatrices(matrix, start_vec.transpose(), end_vec, config.fold_model);
-            
             // Create model instance using direct constructor
             std::unique_ptr<IsingVar> model;
             if (config.fold_model == "Ising2") {
                 model = std::make_unique<Ising2>(matrix, start_vec.transpose(), end_vec, config.length);
             } else if (config.fold_model == "Ising2S3F") {
                 model = std::make_unique<Ising2S3F>(matrix, start_vec.transpose(), end_vec, config.length);
-            } else {
-                throw std::runtime_error("Unsupported fold model: " + config.fold_model);
-            }
-            
-            // Generate equilibrium table and analyze
-            model->GetEquilibrumTable();
-            auto entry = model->Results(SCopyMap);
-            
-            // Store results
-            results.push_back(std::tuple_cat(std::make_tuple(x_param), std::make_tuple(y_param), entry));
-            
-            std::cout << "Completed: " << config.x_param_range.name << "=" << x_param 
-                     << ", " << config.y_param_range.name << "=" << y_param << std::endl;
-        }
-    }
-    
-    // Save results
-    std::vector<std::string> headers = {
-        config.x_param_range.name, config.y_param_range.name,
-        "D(pmap(s,w)||peq(s,w))", "D(pmap(s)||peq(s))", "D(pmap(w)||peq(w))",
-        "NHelixeq", "NHelixMap", "<U>eq", "<U>map",
-        "Heq(s|w)", "Hmap(s|w)", "Heq(w)", "Hmap(w)", "Heq(s)", "Hmap(s)"
-    };
-    
-    saveTuplesToCSV(results, outputFilename, headers);
-    std::cout << "Error scan completed. Results saved to: " << outputFilename << std::endl;
-}
-    for (double x_param = config.x_param_range.start; x_param < config.x_param_range.end; x_param += config.x_param_range.step) {
-        
-        // Generate template-based distribution for this x_param value
-        std::unordered_map<std::string,double> SCopyMap;
-        if (config.x_param_range.name == "error_rate") {
-            SCopyMap = IsingVar::GenerateFromUniformTemplate(config.templates, x_param);
-        } else if (config.x_param_range.name == "log_error") {
-            double error_rate = std::pow(2.0, x_param);
-            SCopyMap = IsingVar::GenerateFromUniformTemplate(config.templates, error_rate);
-        } else {
-            throw std::runtime_error("Unsupported x_param for Error scan: " + config.x_param_range.name);
-        }
-        
-        for (double y_param = config.y_param_range.start; y_param < config.y_param_range.end; y_param += config.y_param_range.step) {
-            
-            // Set up parameter values for matrix evaluation
-            std::map<std::string, double> params;
-            params[config.x_param_range.name] = x_param;
-            params[config.y_param_range.name] = y_param;
-            params["x"] = y_param;  // Default free variable
-            
-            // Build matrices from config
-            auto matrix = buildMatrix(config.energy_matrix, params);
-            auto start_vec = buildVector(config.start_vector, params);
-            auto end_vec = buildVector(config.end_vector, params);
-            
-            // Create model instance using direct constructor
-            std::unique_ptr<IsingVar> model;
-            if (config.fold_model == "Ising2") {
-                model = std::make_unique<Ising2>(matrix, start_vec.transpose(), end_vec, config.length);
-            } else if (config.fold_model == "Ising2S3F") {
-                model = std::make_unique<Ising2S3F>(matrix, start_vec.transpose(), end_vec, config.length);
-            } else {
-                throw std::runtime_error("Unsupported fold model: " + config.fold_model);
-            }
-            
-            // Generate equilibrium table and analyze
-            model->GetEquilibrumTable();
-            auto entry = model->Results(SCopyMap);
-            
-            // Store results
-            results.push_back(std::tuple_cat(std::make_tuple(x_param), std::make_tuple(y_param), entry));
-            
-            std::cout << "Completed: " << config.x_param_range.name << "=" << x_param 
-                     << ", " << config.y_param_range.name << "=" << y_param << std::endl;
-        }
-    }
-    
-    // Save results
-    std::vector<std::string> headers = {
-        config.x_param_range.name, config.y_param_range.name,
-        "D(pmap(s,w)||peq(s,w))", "D(pmap(s)||peq(s))", "D(pmap(w)||peq(w))",
-        "NHelixeq", "NHelixMap", "<U>eq", "<U>map",
-        "Heq(s|w)", "Hmap(s|w)", "Heq(w)", "Hmap(w)", "Heq(s)", "Hmap(s)"
-    };
-    
-    saveTuplesToCSV(results, outputFilename, headers);
-    std::cout << "Error scan completed. Results saved to: " << outputFilename << std::endl;
-} {
-        
-        // Generate template-based distribution for this x_param value
-        std::unordered_map<std::string,double> SCopyMap;
-        if (config.x_param_range.name == "error_rate") {
-            SCopyMap = IsingVar::GenerateFromUniformTemplate(config.templates, x_param);
-        } else if (config.x_param_range.name == "log_error") {
-            double error_rate = std::pow(2.0, x_param);
-            SCopyMap = IsingVar::GenerateFromUniformTemplate(config.templates, error_rate);
-        } else {
-            throw std::runtime_error("Unsupported x_param for Error scan: " + config.x_param_range.name);
-        }
-        
-        for (double y_param = config.y_param_range.start; y_param < config.y_param_range.end; y_param += config.y_param_range.step) {
-            
-            // Set up parameter values for matrix evaluation
-            std::map<std::string, double> params;
-            params[config.x_param_range.name] = x_param;
-            params[config.y_param_range.name] = y_param;
-            params["x"] = y_param;  // Default free variable
-            
-            // Build matrices from config
-            auto matrix = buildMatrix(config.energy_matrix, params);
-            auto start_vec = buildVector(config.start_vector, params);
-            auto end_vec = buildVector(config.end_vector, params);
-            
-            // Create model instance
-            std::unique_ptr<IsingVar> model;
-            if (config.fold_model == "Ising2") {
-                model = std::make_unique<Ising2>(matrix, start_vec.transpose(), end_vec, config.length);
             } else {
                 throw std::runtime_error("Unsupported fold model: " + config.fold_model);
             }
