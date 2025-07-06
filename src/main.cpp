@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <stdexcept>
+#include "Utilities.h"
 #include "ConfigurableScanner.h"
 
 /**
