@@ -28,6 +28,7 @@ endif()
 # Test executables - include source files from src directory
 add_executable(bernoulli_scan 
     tests/BernoulliScan.cpp
+    src/main.cpp
     src/Utilities.cpp
     src/EquilibriumPartitionMapGenerator.cpp
     src/FoldModels.cpp
@@ -36,6 +37,7 @@ add_executable(bernoulli_scan
 
 add_executable(random_param_scan 
     tests/RandomParamErrorScan.cpp
+    src/main.cpp
     src/Utilities.cpp
     src/EquilibriumPartitionMapGenerator.cpp
     src/FoldModels.cpp
