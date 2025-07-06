@@ -248,16 +248,16 @@ void performErrorScan(const Config& config, const std::string& outputFilename) {
     }
     
     std::vector<std::tuple<double,double,double,double,double,double,double,double,double,double,double,double,double,double,double>> results;
-
-    double true_x_param;
-    if(config.x_var_is_log){
-        true_x_param = pow(2,x_param);
-    } else {
-            true_x_param = x_param;
-    }
     
     // Nested loops over parameter ranges
     for (double x_param = config.x_param_range.start; x_param < config.x_param_range.end; x_param += config.x_param_range.step) {
+        double true_x_param;
+        
+        if(config.x_var_is_log){
+            true_x_param = pow(2,x_param);
+        } else {
+            true_x_param = x_param;
+        }
         
         // Generate template-based distribution for this x_param value
         std::unordered_map<std::string,double> SCopyMap;
