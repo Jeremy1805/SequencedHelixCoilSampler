@@ -30,6 +30,7 @@ struct Config {
     std::vector<std::string> start_vector;               ///< Starting vector expressions
     std::vector<std::string> end_vector;                 ///< Ending vector expressions
     int length;                     ///< Polymer length
+    bool x_var_is_log;
     
     /**
      * @brief Parameter range specification
