@@ -48,12 +48,12 @@ enable_testing()
 
 # Add tests that run main with different config files
 add_test(NAME bernoulli_test 
-    COMMAND main config/bernoulli_test.json
+    COMMAND main test/config/bernoulli_test.json
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
 
 add_test(NAME error_test 
-    COMMAND main config/error_test.json
+    COMMAND main test/config/error_test.json
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
 
