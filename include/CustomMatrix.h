@@ -1,3 +1,6 @@
+#ifndef CUSTOMMATRIX_H
+#define CUSTOMMATRIX_H
+
 #include <vector>
 #include <stdexcept>
 #include <sstream>
@@ -727,3 +730,5 @@ public:
         return os;
     }
 };
+
+#endif // CUSTOMMATRIX_H
