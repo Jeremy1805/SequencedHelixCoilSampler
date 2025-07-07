@@ -75,29 +75,45 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y libeigen3-dev libomp-dev doxygen graphviz nlohmann-json3-dev libmuparser-dev pkg-config
-
     - name: Configure CMake (Optimized)
       run: |
         cmake -B build -DCMAKE_BUILD_TYPE=Release \
               -DCMAKE_CXX_FLAGS="-O3 -march=native -DNDEBUG"
-
     - name: Build
       run: cmake --build build --config Release --parallel
-
+    
     - name: Run performance tests
       run: |
-        echo "Running Bernoulli scan performance test..."
-        timeout 120 ./build/bernoulli_scan || echo "Test completed or timed out"
-        echo "Running random parameter scan performance test..."
-        timeout 120 ./build/random_param_scan || echo "Test completed or timed out"
-
-    - name: Check for output files
+        echo "Running Bernoulli test..."
+        ./build/your_executable configs/bernoulli_test.json ./build/results
+        echo "Running error test..."
+        ./build/your_executable configs/error_test.json ./build/results
+    
+    - name: Compare results with expected outputs
       run: |
-        ls -la *.tsv || echo "No TSV files generated"
+        echo "Comparing Bernoulli test results..."
+        if diff -q ./build/results/bernoulli_test_results.tsv ./test/expected/bernoulli_expected.tsv > /dev/null; then
+          echo "✅ Bernoulli test passed - results match expected output"
+        else
+          echo "❌ Bernoulli test failed - results differ from expected:"
+          diff ./build/results/bernoulli_test_results.tsv ./test/expected/bernoulli_expected.tsv
+          exit 1
+        fi
+        
+        echo "Comparing error test results..."
+        if diff -q ./build/results/error_test_results.tsv ./test/expected/error_expected.tsv > /dev/null; then
+          echo "✅ Error test passed - results match expected output"
+        else
+          echo "❌ Error test failed - results differ from expected:"
+          diff ./build/results/error_test_results.tsv ./test/expected/error_expected.tsv
+          exit 1
+        fi
         
     - name: Upload performance results
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: performance-test-outputs
-        path: "*.tsv"
+        path: |
+          ./build/results/*.tsv
+          ./test/expected/*.tsv
