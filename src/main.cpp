@@ -48,6 +48,8 @@ int main(int argc, char* argv[]) {
             outputFilename = outputFilename.substr(0, lastDot);
         }
         outputFilename += "_results.tsv";
+
+        outputFilename = (std::filesystem::path(outputDirectory) / outputFilename).string();
         
         // Print configuration summary
         std::cout << "=== Configuration Summary ===" << std::endl;
