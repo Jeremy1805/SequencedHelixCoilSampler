@@ -42,12 +42,9 @@ int main(int argc, char* argv[]) {
         auto config = parseConfig(configFilename);
         
         // Generate output filename from config filename
-        std::string outputFilename = configFilename;
-        size_t lastDot = outputFilename.find_last_of(".");
-        if (lastDot != std::string::npos) {
-            outputFilename = outputFilename.substr(0, lastDot);
-        }
-        outputFilename += "_results.tsv";
+        std::filesystem::path filePath(configFilename);
+        std::string baseName = filePath.stem().string();
+        outputFilename = baseName + "_results.tsv";
 
         outputFilename = (std::filesystem::path(outputDirectory) / outputFilename).string();
         
