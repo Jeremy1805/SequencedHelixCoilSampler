@@ -85,9 +85,9 @@ jobs:
     - name: Run performance tests
       run: |
         echo "Running Bernoulli test..."
-        ./build/your_executable configs/bernoulli_test.json ./build/results
+        ./build/main ./test/config/bernoulli_test.json ./build/results
         echo "Running error test..."
-        ./build/your_executable configs/error_test.json ./build/results
+        ./build/main ./test/config/error_test.json ./build/results
     
     - name: Compare results with expected outputs
       run: |
