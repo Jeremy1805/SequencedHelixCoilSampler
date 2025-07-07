@@ -103,7 +103,12 @@ Config parseConfig(const std::string& filename) {
     if (j.contains("templates")) {
         auto templates_json = j.at("templates");
         for (const auto& tmpl : templates_json) {
-            config.templates.push_back(tmpl.get<std::string>());
+            std::string str_tmpl = tmpl.get<std::string>();
+            if (str_tmpl.length() != size_t(config.length)) {
+                throw std::runtime_error("Error scan: one or more templates inconsistent with polymer length");
+            } else {
+                config.templates.push_back(str_tmpl);
+            }
         }
     }
     
