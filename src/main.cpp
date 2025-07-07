@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <stdexcept>
+#include <filesystem>
 #include "Utilities.h"
 #include "ConfigurableScanner.h"
 
@@ -17,13 +18,24 @@
  * - "error": Scans over template-based sequence distributions with error rates
  */
 int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        std::cerr << "Usage: " << argv[0] << " <config_file.json>" << std::endl;
-        std::cerr << "Example: " << argv[0] << " configs/bernoulli_scan.json" << std::endl;
-        return 1;
+    if (argc < 2 || argc > 3) {
+    std::cerr << "Usage: " << argv[0] << " <config_file.json> [output_directory]" << std::endl;
+    std::cerr << "Example: " << argv[0] << " configs/bernoulli_scan.json" << std::endl;
+    std::cerr << "Example: " << argv[0] << " configs/bernoulli_scan.json ./my_results" << std::endl;
+    return 1;
     }
     
     std::string configFilename = argv[1];
+    std::string outputDirectory;
+    
+    if (argc == 3) {
+        outputDirectory = argv[2];
+    } else {
+        outputDirectory = "results";
+    }
+    
+    // Create output directory if it doesn't exist
+    std::filesystem::create_directories(outputDirectory);
     
     try {
         // Parse configuration file
