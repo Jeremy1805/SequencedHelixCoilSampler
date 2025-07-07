@@ -1,5 +1,4 @@
 name: C++ CI
-
 on:
   push:
     branches: [ "main", "develop" ]
@@ -13,29 +12,28 @@ jobs:
     strategy:
       matrix:
         build_type: [Debug, Release]
-
     steps:
     - uses: actions/checkout@v4
-
+    
     - name: Install dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y libeigen3-dev libomp-dev doxygen graphviz nlohmann-json3-dev libmuparser-dev pkg-config
-
+    
     - name: Configure CMake
       run: cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-
+    
     - name: Build
       run: cmake --build build --config ${{ matrix.build_type }} --parallel
-
+    
     - name: Test
       run: ctest --test-dir build --build-config ${{ matrix.build_type }} --verbose --output-on-failure --parallel
-
+    
     - name: Upload test results (on failure)
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: test-results-${{ matrix.os }}-${{ matrix.build_type }}
+        name: test-results-${{ matrix.build_type }}
         path: |
           build/Testing/
           build/**/*.log
@@ -49,14 +47,14 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libeigen3-dev libboost-dev libomp-dev doxygen graphviz cppcheck doxygen graphviz
-
+        sudo apt-get install -y libeigen3-dev libboost-dev libomp-dev doxygen graphviz cppcheck
+    
     - name: Static analysis with cppcheck
       run: |
         cppcheck --enable=all --std=c++17 --suppress=missingIncludeSystem \
                  --error-exitcode=1 --inline-suppr \
                  *.cpp 2>&1 | tee cppcheck-report.txt
-
+    
     - name: Upload static analysis results
       if: always()
       uses: actions/upload-artifact@v4
@@ -75,39 +73,34 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y libeigen3-dev libomp-dev doxygen graphviz nlohmann-json3-dev libmuparser-dev pkg-config
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+    
     - name: Configure CMake (Optimized)
       run: |
         cmake -B build -DCMAKE_BUILD_TYPE=Release \
               -DCMAKE_CXX_FLAGS="-O3 -march=native -DNDEBUG"
+    
     - name: Build
       run: cmake --build build --config Release --parallel
     
     - name: Run performance tests
       run: |
         echo "Running Bernoulli test..."
-        ./build/main ./test/config/bernoulli_test.json ./build/results
+        ./build/main test/config/bernoulli_test.json ./build/results
         echo "Running error test..."
-        ./build/main ./test/config/error_test.json ./build/results
+        ./build/main test/config/error_test.json ./build/results
     
     - name: Compare results with expected outputs
       run: |
         echo "Comparing Bernoulli test results..."
-        if diff -q ./build/results/bernoulli_test_results.tsv ./test/expected/bernoulli_expected.tsv > /dev/null; then
-          echo "✅ Bernoulli test passed - results match expected output"
-        else
-          echo "❌ Bernoulli test failed - results differ from expected:"
-          diff ./build/results/bernoulli_test_results.tsv ./test/expected/bernoulli_expected.tsv
-          exit 1
-        fi
+        python3 scripts/compare_tsv.py ./build/results/bernoulli_test_results.tsv ./test/expected/bernoulli_expected.tsv
         
         echo "Comparing error test results..."
-        if diff -q ./build/results/error_test_results.tsv ./test/expected/error_expected.tsv > /dev/null; then
-          echo "✅ Error test passed - results match expected output"
-        else
-          echo "❌ Error test failed - results differ from expected:"
-          diff ./build/results/error_test_results.tsv ./test/expected/error_expected.tsv
-          exit 1
-        fi
+        python3 scripts/compare_tsv.py ./build/results/error_test_results.tsv ./test/expected/error_expected.tsv
         
     - name: Upload performance results
       if: always()
