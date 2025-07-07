@@ -9,7 +9,7 @@
     ],
     "start_vector": ["1.0", "1.0", "1.0", "1.0"],
     "end_vector": ["1.0", "1.0", "1.0", "1.0"],
-    "length": 6,
+    "length": 11,
     "x_param_range": {
         "name": "bernoulli_prob",
         "start": -8,
