@@ -7,7 +7,7 @@
 
 ## Overview
 
-SequencedHelixCoilSampler is a C++ implementation for analyzing protein secondary structure transitions using statistical mechanical models. The software provides exact solutions for sequenced helix-coil equilibrium dynamics through transfer matrix methods and enables comprehensive analysis of sequence-dependent folding patterns.
+A C++ implementation for analyzing information-thermodynamic quantities for helix-coil folding with an underlying sequence, applying using statistical mechanical models. For short polymers, the program provides exact fold probabilities for a given probability distribution of sequences of a certain length through transfer matrix methods, and then calculates key information-theoretic quantities. 
 
 ### Key Features
 
