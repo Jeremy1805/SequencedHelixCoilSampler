@@ -11,7 +11,7 @@ A C++ implementation for analyzing information-thermodynamic quantities for heli
 
 ### Key Features
 
-- **Transfer Matrix Methods**: Exact partition function calculations for small to medium-sized systems
+- **Transfer Matrix Methods**: Exact partition function calculation for small to medium-sized systems
 - **Novel Matrix Fraction Arithmetic**: Original method for calculations of marginalized statistics in quenched ising chains.
 - **Monte Carlo Sampling**: Efficient sampling of sequence-structure ensembles
 - **Information Theory Analysis**: KL divergence, mutual information, and entropy calculations
