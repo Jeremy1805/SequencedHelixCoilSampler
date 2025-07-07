@@ -44,7 +44,7 @@ int main(int argc, char* argv[]) {
         // Generate output filename from config filename
         std::filesystem::path filePath(configFilename);
         std::string baseName = filePath.stem().string();
-        std::string outputFilename = outputFilename = (std::filesystem::path(outputDirectory) / (baseName + "_results.tsv") ).string();
+        std::string outputFilename = (std::filesystem::path(outputDirectory) / (baseName + "_results.tsv") ).string();
         
         // Print configuration summary
         std::cout << "=== Configuration Summary ===" << std::endl;
