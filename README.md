@@ -141,7 +141,7 @@ bernoulli_prob    eps    D(pmap(s,w)||peq(s,w))    D(pmap(s)||peq(s))    D(pmap(
 - **Matrix fractions**: O(length) at fixed precision.
 
 ### Parallel Performance
-OpenMP parallelization provide up to 3-fold speedup in the generation of p_eq(s,ω)
+OpenMP parallelization available.
 
 ## Support and Contact
 
