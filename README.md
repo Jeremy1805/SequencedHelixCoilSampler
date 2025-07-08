@@ -120,7 +120,7 @@ main /path/to/config/file.config
 ## Model Types
 
 ### Ising2: Two-State Helix-Coil Model
-Each residue can be in helix (ω=0) or coil (ω=1) conformation.
+Two sequence monomer degrees of freedom (0 and 1), and 2 fold degrees of freedom (helix = 0 and coil = 1).
 
 ### Ising2S3F: Extended Three-Fold Model  
 Implementation pending. 
