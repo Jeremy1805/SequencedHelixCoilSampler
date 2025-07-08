@@ -8,29 +8,63 @@
 
 ## Overview
 
-A high-performance C++ implementation for analyzing the information thermodynamics of sequence-to-structure mapping using helix-coil models as a testbed. This software combines statistical mechanics with information theory to understand fundamental principles of how information flows through physical systems, using protein folding as a tractable model system.
+A C++ implementation for analyzing the information thermodynamics of sequence-to-structure mapping using helix-coil models (specifically the Zimm-Bragg model) as a testbed. This software combines statistical mechanics with information theory to understand fundamental principles of work-information tradeoffs in systems where a copied (quenched) ensemble of sequences adopts an ensemble of folds. The Zimm-Bragg model is used as a toy model for its simplicity.  
 
 ## Scientific Background
 
-### Information Thermodynamics Framework
-This software explores the fundamental question: **How does information flow through physical processes?** We use protein folding as a model system where:
-- **Input information**: Amino acid sequence (s)
-- **Physical process**: Statistical mechanical folding 
-- **Output information**: Protein structure/fold (ω)
-- **Energy landscape**: Determined by sequence-structure interactions E(s,ω)
+### Information Thermodynamics of Joint Copying-folding Systems
+Polymer copying is fundamentally nonequilibrium (see Ouldridge 2017 and Poulton 2019 to understand why). On the other hand, polymer polfing is often envisioned as anequilibrium process. The question then, is as follows: **How is the nonequilibrium work exerted during copying utilized in folding?**
 
-### The Helix-Coil Model as a Toy System
-The helix-coil transition provides an ideal testbed for information thermodynamics because:
-- **Tractable**: Exactly solvable via transfer matrix methods
-- **Rich behavior**: Phase transitions, cooperativity, sequence effects
-- **Tunable complexity**: From simple 2-state to multi-state models
-- **Physical relevance**: Captures essential features of real folding
+### Zimm-Bragg Model
+We use the Zimm-Bragg helix-coil folding model as a toy model with which to investigate the above question. Briefly, the Zimm-Bragg model has the following features:
+- **1D lattice model**: For a polymer of length L, assume L lattice sites arranged in 1D. 
+- **Sequence-dependence**: Each lattice site i has sequence s_i and fold ω_i degrees of freedom.
+- **Nearest-neighbour interactions**: Only interactions between consecutive lattice sites allowed, with energy function E(s_i,ω_i,s_{i+1},ω_{i+1}).
+- **State Space**: We are interested in the information-thermodynamic quantities for the equilibrium probability distribution p_eq(s_1s_2...s_L,ω_1ω_2...ω_L) as well as the quenched copy probability distribution p_copy(s_1s_2...s_L,ω_1ω_2...ω_L), along with associated marginalized distributions.  
 
-### Key Questions We Address
-- **Information preservation**: How much sequence information survives the folding process?
-- **Efficiency measures**: What determines optimal information transfer through physical systems?
-- **Thermodynamic costs**: What are the energetic requirements for information processing?
-- **Design principles**: How should physical systems be structured for reliable information transfer?
+### Key information-thermodynamic quantities
+We list a few key quantities that will be useful
+
+The free energy stored in the quenched distribution relative to the equilibrium distribution can be decomposed as follows:
+```
+G_copy - G_eq = U_copy - U_eq - k_BT( H_copy(S|Ω) - H_eq(S|Ω) + H_copy(Ω) - H_eq(Ω))
+```
+
+#### 1. KL Divergence as Stored Free Energy
+The Kullback-Leibler divergence D(p||p_eq) directly measures the **excess free energy** stored in a non-equilibrium distribution:
+```
+F_excess = kT × D(p_map(ω)||p_eq(ω))
+```
+This represents the maximum work that could be extracted by allowing the fold distribution to relax from p_map(ω) back to equilibrium p_eq(ω).
+
+**Physical interpretation**: If you have a system with fold distribution p_map(ω) instead of the equilibrium p_eq(ω), you have stored kT × D(p_map(ω)||p_eq(ω)) of free energy that could drive other processes.
+
+#### 2. Entropy Reduction as Organization Work
+The reduction in entropy relative to equilibrium measures the **organizational work** done:
+```
+W_organization = kT × (H_eq(ω) - H_map(ω))
+```
+This quantifies how much more "organized" (lower entropy) the fold distribution has become relative to equilibrium.
+
+**Physical interpretation**: Creating a more organized (lower entropy) distribution requires work input. The entropy reduction measures this organizational work.
+
+#### Efficiency and the Data Processing Inequality
+These measures are related by fundamental inequalities from information theory. For the sequence-to-structure mapping T → S → Ω:
+```
+D(p_map(s)||p_eq(s)) ≥ D(p_map(ω)||p_eq(ω))
+```
+This gives an efficiency measure:
+```
+η = D(p_map(ω)||p_eq(ω)) / D(p_map(s)||p_eq(s)) ≤ 1
+```
+**Physical meaning**: The folding process can never create more deviation from equilibrium in the structure than existed in the sequence. Folding acts as a "lossy compression" that necessarily reduces the stored free energy.
+
+#### Energy-Entropy Decomposition
+The total excess free energy can be decomposed into energetic and entropic contributions:
+```
+kT × D(p_map(ω)||p_eq(ω)) = ⟨U⟩_map - ⟨U⟩_eq - kT(H_map(ω) - H_eq(ω))
+```
+This separates the contribution from **energetic bias** (average energy difference) and **entropic organization** (entropy reduction).
 
 ### Transfer Matrix Framework
 
@@ -70,46 +104,6 @@ M[(s_i,ω_i), (s_{i+1},ω_{i+1})] = exp(-E(s_i,ω_i,s_{i+1},ω_{i+1})/kT)
 
 **Sequence-free case**: Standard eigenvalue analysis gives thermodynamic properties
 **Sequenced case**: Requires marginalization techniques, including our novel reciprocal matrix methods
-
-### Information-Thermodynamic Analysis
-
-The key insight from information thermodynamics is that deviations from equilibrium represent **stored free energy** that could, in principle, be extracted as useful work. We quantify this using two complementary measures:
-
-#### 1. KL Divergence as Stored Free Energy
-The Kullback-Leibler divergence D(p||p_eq) directly measures the **excess free energy** stored in a non-equilibrium distribution:
-```
-F_excess = kT × D(p_map(ω)||p_eq(ω))
-```
-This represents the maximum work that could be extracted by allowing the fold distribution to relax from p_map(ω) back to equilibrium p_eq(ω).
-
-**Physical interpretation**: If you have a system with fold distribution p_map(ω) instead of the equilibrium p_eq(ω), you have stored kT × D(p_map(ω)||p_eq(ω)) of free energy that could drive other processes.
-
-#### 2. Entropy Reduction as Organization Work
-The reduction in entropy relative to equilibrium measures the **organizational work** done:
-```
-W_organization = kT × (H_eq(ω) - H_map(ω))
-```
-This quantifies how much more "organized" (lower entropy) the fold distribution has become relative to equilibrium.
-
-**Physical interpretation**: Creating a more organized (lower entropy) distribution requires work input. The entropy reduction measures this organizational work.
-
-#### Efficiency and the Data Processing Inequality
-These measures are related by fundamental inequalities from information theory. For the sequence-to-structure mapping T → S → Ω:
-```
-D(p_map(s)||p_eq(s)) ≥ D(p_map(ω)||p_eq(ω))
-```
-This gives an efficiency measure:
-```
-η = D(p_map(ω)||p_eq(ω)) / D(p_map(s)||p_eq(s)) ≤ 1
-```
-**Physical meaning**: The folding process can never create more deviation from equilibrium in the structure than existed in the sequence. Folding acts as a "lossy compression" that necessarily reduces the stored free energy.
-
-#### Energy-Entropy Decomposition
-The total excess free energy can be decomposed into energetic and entropic contributions:
-```
-kT × D(p_map(ω)||p_eq(ω)) = ⟨U⟩_map - ⟨U⟩_eq - kT(H_map(ω) - H_eq(ω))
-```
-This separates the contribution from **energetic bias** (average energy difference) and **entropic organization** (entropy reduction).
 
 ## Key Features
 
