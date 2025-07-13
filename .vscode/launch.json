@@ -1,0 +1,194 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Main (Bernoulli Test)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/main",
+            "args": ["bernoulli_test.json", "./build/results"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "OMP_NUM_THREADS",
+                    "value": "4"
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Enable Eigen pretty printing",
+                    "text": "python import sys; sys.path.insert(0, '/usr/share/eigen3/gdb'); from printers import register_eigen_printers; register_eigen_printers(None)",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set print elements unlimited",
+                    "text": "-gdb-set print elements 0",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "Build Debug",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "logging": {
+                "engineLogging": false,
+                "programOutput": true,
+                "trace": false
+            }
+        },
+        {
+            "name": "Debug Main (Error Test)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/main",
+            "args": ["error_test.json", "./build/results"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "OMP_NUM_THREADS",
+                    "value": "4"
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Enable Eigen pretty printing",
+                    "text": "python import sys; sys.path.insert(0, '/usr/share/eigen3/gdb'); from printers import register_eigen_printers; register_eigen_printers(None)",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set print elements unlimited",
+                    "text": "-gdb-set print elements 0",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "Build Debug",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "logging": {
+                "engineLogging": false,
+                "programOutput": true,
+                "trace": false
+            }
+        },
+        {
+            "name": "Debug Custom Config",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/main",
+            "args": ["${input:configFile}", "${input:outputDir}"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "OMP_NUM_THREADS",
+                    "value": "4"
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Enable Eigen pretty printing",
+                    "text": "python import sys; sys.path.insert(0, '/usr/share/eigen3/gdb'); from printers import register_eigen_printers; register_eigen_printers(None)",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set print elements unlimited",
+                    "text": "-gdb-set print elements 0",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "Build Debug",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "logging": {
+                "engineLogging": false,
+                "programOutput": true,
+                "trace": false
+            }
+        },
+        {
+            "name": "Debug Single Function Test",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/test_runner",
+            "args": ["--verbose"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Enable Eigen pretty printing",
+                    "text": "python import sys; sys.path.insert(0, '/usr/share/eigen3/gdb'); from printers import register_eigen_printers; register_eigen_printers(None)",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "Build Debug",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "logging": {
+                "engineLogging": false,
+                "programOutput": true,
+                "trace": false
+            }
+        },
+        {
+            "name": "Attach to Running Process",
+            "type": "cppdbg",
+            "request": "attach",
+            "program": "${workspaceFolder}/build/main",
+            "processId": "${command:pickProcess}",
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Enable Eigen pretty printing",
+                    "text": "python import sys; sys.path.insert(0, '/usr/share/eigen3/gdb'); from printers import register_eigen_printers; register_eigen_printers(None)",
+                    "ignoreFailures": true
+                }
+            ],
+            "miDebuggerPath": "/usr/bin/gdb"
+        }
+    ],
+    "inputs": [
+        {
+            "id": "configFile",
+            "description": "Path to config JSON file",
+            "default": "bernoulli_test.json",
+            "type": "promptString"
+        },
+        {
+            "id": "outputDir",
+            "description": "Output directory for results",
+            "default": "./build/results",
+            "type": "promptString"
+        }
+    ]
+}
