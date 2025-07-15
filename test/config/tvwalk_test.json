@@ -1,0 +1,28 @@
+{
+    "scan_type": "tvwalk",
+    "fold_model": "Ising2",
+    "energy_matrix": [
+        ["exp(-8.6*x)", "exp(13.5*x)", "exp(13.5*x)", "exp(13.5*x)"],
+        ["exp(13.5*x)", "exp(13.5*x)", "exp(13.5*x)", "exp(13.5*x)"], 
+        ["exp(2.4*x)", "exp(2.4*x)", "exp(7.3*x)", "exp(2.4*x)"],
+        ["exp(2.4*x)", "exp(2.4*x)", "exp(2.4*x)", "exp(2.4*x)"]
+    ],
+    "start_vector": ["1.0", "1.0", "1.0", "1.0"],
+    "end_vector": ["exp(13.5*x)", "exp(13.5*x)", "exp(2.4*x)", "exp(2.4*x)"],
+    "length": 8,
+    "x_param_range": {
+        "name": "tv_distance",
+        "start": 0.1,
+        "end": 1,
+        "step": 0.3
+    },
+    "y_param_range": {
+        "name": "eps",
+        "start": 1.7,
+        "end": 2.5,
+        "step": 0.3
+    },
+    "x_var_is_log": false,
+    "templates": ["00000000"],
+    "scan_subtype": "fixed_error" 
+}

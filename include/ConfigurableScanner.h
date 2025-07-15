@@ -25,13 +25,14 @@
  */
 struct Config {
     std::string scan_type;          ///< Type of scan ("bernoulli" or "error")
+    std::string scan_subtype;       ///< Some scans will require a subtype
     std::string fold_model;         ///< Model type ("Ising2" or "Ising2S3F")
     std::vector<std::vector<std::string>> energy_matrix;  ///< Transfer matrix expressions
     std::vector<std::string> start_vector;               ///< Starting vector expressions
     std::vector<std::string> end_vector;                 ///< Ending vector expressions
     int length;                     ///< Polymer length
-    bool x_var_is_log; /// If true, then the exponential 2^x is used as the true x variable. 
-    
+    bool x_var_is_log = false; /// If true, then the exponential 2^x is used as the true x variable. 
+    double fixed_error= 0.001; // Needed for scans with fixed errors 
     /**
      * @brief Parameter range specification
      * 
@@ -147,4 +148,15 @@ void performBernoulliScan(const Config& config, const std::string& outputFilenam
  */
 void performErrorScan(const Config& config, const std::string& outputFilename);
 
+/**
+ * @brief Perform scan in Total Variation Distance
+ * 
+ * x_param is always total variation distance - a walk is performed starting from equilibrium
+ * towards some other probability distribution and results are recorded at log/linear intervals.
+ * y_param varies by scan subtypes (see above) 
+ *
+ * @param config Configuration containing scan parameters and template sequences
+ * @param outputFilename Base name for output file
+ */
+void performTVScan(const Config& config, const std::string& outputFilename);
 #endif

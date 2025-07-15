@@ -58,11 +58,26 @@ Config parseConfig(const std::string& filename) {
     
     Config config;
     
+    bool energy_params_required = true;
+
     // Parse basic fields
     config.scan_type = j.at("scan_type").get<std::string>();
     config.fold_model = j.at("fold_model").get<std::string>();
     config.length = j.at("length").get<int>();
     
+    // Parse optionals
+    if (j.contains("scan_subtype")) {
+        config.scan_subtype = j.at("scan_subtype").get<std::string>();
+        if (config.scan_subtype == "rand_param_rand_traj"){
+            energy_params_required = false;
+        }
+    }
+    if (j.contains("fixed_error")) {
+        config.fixed_error = j.at("fixed_error").get<double>();
+    }
+    if (j.contains("x_var_is_log")) {
+        config.x_var_is_log = j.at("x_var_is_log").get<bool>();
+    }
     // Parse parameter ranges
     auto x_param = j.at("x_param_range");
     config.x_param_range.name = x_param.at("name").get<std::string>();
@@ -75,30 +90,30 @@ Config parseConfig(const std::string& filename) {
     config.y_param_range.start = y_param.at("start").get<double>();
     config.y_param_range.end = y_param.at("end").get<double>();
     config.y_param_range.step = y_param.at("step").get<double>();
-
-    config.x_var_is_log = j.at("x_var_is_log").get<bool>();
     
-    // Parse energy matrix (2D array of strings)
-    auto energy_matrix_json = j.at("energy_matrix");
-    for (const auto& row : energy_matrix_json) {
-        std::vector<std::string> matrix_row;
-        for (const auto& element : row) {
-            matrix_row.push_back(element.get<std::string>());
+    if (energy_params_required) {
+        std::cout << "ENTRY" << std::endl;
+        // Parse energy matrix (2D array of strings)
+        auto energy_matrix_json = j.at("energy_matrix");
+        for (const auto& row : energy_matrix_json) {
+            std::vector<std::string> matrix_row;
+            for (const auto& element : row) {
+                matrix_row.push_back(element.get<std::string>());
+            }
+            config.energy_matrix.push_back(matrix_row);
         }
-        config.energy_matrix.push_back(matrix_row);
+        
+        // Parse start and end vectors (arrays of strings)
+        auto start_vector_json = j.at("start_vector");
+        for (const auto& element : start_vector_json) {
+            config.start_vector.push_back(element.get<std::string>());
+        }
+        
+        auto end_vector_json = j.at("end_vector");
+        for (const auto& element : end_vector_json) {
+            config.end_vector.push_back(element.get<std::string>());
+        }
     }
-    
-    // Parse start and end vectors (arrays of strings)
-    auto start_vector_json = j.at("start_vector");
-    for (const auto& element : start_vector_json) {
-        config.start_vector.push_back(element.get<std::string>());
-    }
-    
-    auto end_vector_json = j.at("end_vector");
-    for (const auto& element : end_vector_json) {
-        config.end_vector.push_back(element.get<std::string>());
-    }
-    
     // Parse templates (optional, for error scan)
     if (j.contains("templates")) {
         auto templates_json = j.at("templates");
@@ -261,9 +276,7 @@ void performErrorScan(const Config& config, const std::string& outputFilename) {
         }
         
         // Generate template-based distribution for this x_param value
-        std::unordered_map<std::string,double> SCopyMap;
-        SCopyMap = IsingVar::GenerateFromUniformTemplate(config.templates, true_x_param);
-        
+        std::unordered_map<std::string,double> SCopyMap = IsingVar::GenerateFromUniformTemplate(config.templates, true_x_param);
         for (double y_param = config.y_param_range.start; y_param < config.y_param_range.end; y_param += config.y_param_range.step) {
             
             // Set up parameter values for matrix evaluation
@@ -288,6 +301,7 @@ void performErrorScan(const Config& config, const std::string& outputFilename) {
             }
             
             // Generate equilibrium table and analyze
+            
             model->GetEquilibrumTable();
             auto entry = model->Results(SCopyMap);
             
@@ -295,7 +309,7 @@ void performErrorScan(const Config& config, const std::string& outputFilename) {
             results.push_back(std::tuple_cat(std::make_tuple(x_param), std::make_tuple(y_param), entry));
             
             std::cout << "Completed: " << config.x_param_range.name << "=" << x_param 
-                     << ", " << config.y_param_range.name << "=" << y_param << std::endl;
+                    << ", " << config.y_param_range.name << "=" << y_param << std::endl;
         }
     }
     
@@ -309,4 +323,230 @@ void performErrorScan(const Config& config, const std::string& outputFilename) {
     
     saveTuplesToCSV(results, outputFilename, headers);
     std::cout << "Error scan completed. Results saved to: " << outputFilename << std::endl;
+}
+
+// Helper struct to encapsulate model creation logic
+struct ModelCreator {
+    static std::unique_ptr<IsingVar> createModel(const Config& config, 
+                                                const std::map<std::string, double>& params) {
+        auto matrix = buildMatrix(config.energy_matrix, params);
+        auto start_vec = buildVector(config.start_vector, params);
+        auto end_vec = buildVector(config.end_vector, params);
+        
+        if (config.fold_model == "Ising2") {
+            return std::make_unique<Ising2>(matrix, start_vec.transpose(), end_vec, config.length);
+        } else if (config.fold_model == "Ising2S3F") {
+            return std::make_unique<Ising2S3F>(matrix, start_vec.transpose(), end_vec, config.length);
+        } else {
+            throw std::runtime_error("Unsupported fold model: " + config.fold_model);
+        }
+    }
+    
+    static std::unique_ptr<IsingVar> createRandomModel(const Config& config, int seed) {
+        if (config.fold_model == "Ising2") {
+            return std::make_unique<Ising2>(seed, config.length);
+        } else {
+            throw std::runtime_error("Unsupported fold model for random creation: " + config.fold_model);
+        }
+    }
+};
+
+// Helper function to add reference distribution result
+void addReferenceResult(std::vector<std::tuple<double,double,double,double,double,double,double,double,double,double,double,double,double,double,double,std::string>>& results,
+                       const Config& config,
+                       double y_param,
+                       const std::unordered_map<std::string,double>& referenceMap,
+                       const std::unique_ptr<IsingVar>& model) {
+    auto entry = model->Results(referenceMap);
+    double measured_tv = IsingVar::CalculateTotalVariationDistance(model->SEquilibriumMap, referenceMap);
+    
+    double x_value = config.x_var_is_log ? log2(measured_tv) : measured_tv;
+    results.push_back(std::tuple_cat(std::make_tuple(x_value), std::make_tuple(y_param), entry, std::make_tuple("reference_dist")));
+}
+
+// Helper function to add TV walk result with boundary checking (now takes precomputed boundary)
+void addTVWalkResultWithBoundary(std::vector<std::tuple<double,double,double,double,double,double,double,double,double,double,double,double,double,double,double,std::string>>& results,
+                               const Config& config,
+                               double x_param,
+                               double y_param,
+                               const std::unordered_map<std::string,double>& referenceMap,
+                               const std::unique_ptr<IsingVar>& model,
+                               double min_tv_boundary,
+                               double max_tv_boundary,
+                               bool& boundary_reached) {
+    double true_x_param = config.x_var_is_log ? pow(2, x_param) : x_param;
+    
+    if (true_x_param > max_tv_boundary) {
+        // We've hit the positive boundary - use the maximum valid TV distance instead
+        std::unordered_map<std::string,double> SCopyMap = model->TVWalk(referenceMap, max_tv_boundary);
+        auto entry = model->Results(SCopyMap);
+        
+        // Store with actual achieved TV distance and boundary tag
+        double actual_x_value = config.x_var_is_log ? log2(max_tv_boundary) : max_tv_boundary;
+        results.push_back(std::tuple_cat(std::make_tuple(actual_x_value), std::make_tuple(y_param), entry, std::make_tuple("boundary")));
+        
+        std::cout << "Hit positive boundary at: " << config.x_param_range.name << "=" << actual_x_value 
+                  << ", " << config.y_param_range.name << "=" << y_param << std::endl;
+        
+        boundary_reached = true;
+        return;
+    }
+    
+    // Note: min_tv_boundary available for future negative direction walks
+    // Future check would be: if (true_x_param < min_tv_boundary) { ... }
+    
+    // Normal case - we can reach the requested TV distance
+    std::unordered_map<std::string,double> SCopyMap = model->TVWalk(referenceMap, true_x_param);
+    auto entry = model->Results(SCopyMap);
+    
+    results.push_back(std::tuple_cat(std::make_tuple(x_param), std::make_tuple(y_param), entry, std::make_tuple("none")));
+    
+    std::cout << "Completed: " << config.x_param_range.name << "=" << x_param 
+              << ", " << config.y_param_range.name << "=" << y_param << std::endl;
+}
+
+// TV scan subtype (see function performTVscan for an overview) implementations
+
+// Subtype of TV scan where energy matrix is varied
+void performFixedErrorScan(const Config& config, 
+                          std::vector<std::tuple<double,double,double,double,double,double,double,double,double,double,double,double,double,double,double,std::string>>& results) {
+    if (config.templates.empty()) {
+        throw std::runtime_error("TV error scans require template sequences in config");
+    }
+    
+    std::unordered_map<std::string,double> SReferenceMap = 
+        IsingVar::GenerateFromUniformTemplate(config.templates, config.fixed_error);
+    
+    for (double y_param = config.y_param_range.start; y_param < config.y_param_range.end; y_param += config.y_param_range.step) {
+        std::map<std::string, double> params;
+        params["x"] = y_param;
+        
+        auto model = ModelCreator::createModel(config, params);
+        model->GetEquilibrumTable();
+        
+        // Add reference result
+        addReferenceResult(results, config, y_param, SReferenceMap, model);
+        
+        // Compute TV boundaries once for this trajectory
+        auto [min_tv, max_tv] = model->FindTotalVariationDistanceRange(SReferenceMap);
+        
+        // Add TV walk results with boundary checking
+        bool boundary_reached = false;
+        for (double x_param = config.x_param_range.start; x_param < config.x_param_range.end; x_param += config.x_param_range.step) {
+            if (boundary_reached) break; // Stop walking once boundary is hit
+            
+            // Note: We need to recreate the model for each x_param in this scan type
+            auto walk_model = ModelCreator::createModel(config, {{"x", y_param}});
+            walk_model->GetEquilibrumTable();
+            addTVWalkResultWithBoundary(results, config, x_param, y_param, SReferenceMap, walk_model, min_tv, max_tv, boundary_reached);
+        }
+    }
+}
+
+// Subtype of TV scan where energy matrix is fixed and walk direction is randomized
+void performFixedParamRandomTrajScan(const Config& config, 
+                                   std::vector<std::tuple<double,double,double,double,double,double,double,double,double,double,double,double,double,double,double,std::string>>& results) {
+    if (config.y_param_range.name != "seed") {
+        throw std::runtime_error("fixed_param_rand_traj TV scans always run with random seeds as the y parameter.");
+    }
+    
+    std::map<std::string, double> params;
+    params["x"] = 0;  // Should throw error if used, as fixed matrix expected
+    
+    auto model = ModelCreator::createModel(config, params);
+    model->GetEquilibrumTable();
+    
+    for (int y_param = config.y_param_range.start; y_param < config.y_param_range.end; y_param += config.y_param_range.step) {
+        std::unordered_map<std::string,double> SReferenceMap = 
+            IsingVar::SampleRandomProb(y_param, config.length);
+        
+        // Add reference result
+        addReferenceResult(results, config, y_param, SReferenceMap, model);
+        
+        // Compute TV boundaries once for this trajectory
+        auto [min_tv, max_tv] = model->FindTotalVariationDistanceRange(SReferenceMap);
+        
+        // Add TV walk results with boundary checking
+        bool boundary_reached = false;
+        for (double x_param = config.x_param_range.start; x_param < config.x_param_range.end; x_param += config.x_param_range.step) {
+            if (boundary_reached) break; // Stop walking once boundary is hit
+            
+            addTVWalkResultWithBoundary(results, config, x_param, y_param, SReferenceMap, model, min_tv, max_tv, boundary_reached);
+        }
+    }
+}
+
+// Subtype of TV scan where energy matrix and walk direction are both randomized
+void performRandomParamRandomTrajScan(const Config& config, 
+                                    std::vector<std::tuple<double,double,double,double,double,double,double,double,double,double,double,double,double,double,double,std::string>>& results) {
+    if (config.y_param_range.name != "seed") {
+        throw std::runtime_error("rand_param_rand_traj TV scans always run with random seeds as the y parameter.");
+    }
+    
+    for (int y_param = config.y_param_range.start; y_param < config.y_param_range.end; y_param += config.y_param_range.step) {
+        auto model = ModelCreator::createRandomModel(config, y_param);
+        model->GetEquilibrumTable();
+        
+        std::unordered_map<std::string,double> SReferenceMap = 
+            IsingVar::SampleRandomProb(y_param + 1234567, config.length); // Seed offset for independence
+        
+        // Add reference result
+        addReferenceResult(results, config, y_param, SReferenceMap, model);
+        
+        // Compute TV boundaries once for this trajectory
+        auto [min_tv, max_tv] = model->FindTotalVariationDistanceRange(SReferenceMap);
+        
+        // Add TV walk results with boundary checking
+        bool boundary_reached = false;
+        for (double x_param = config.x_param_range.start; x_param < config.x_param_range.end; x_param += config.x_param_range.step) {
+            if (boundary_reached) break; // Stop walking once boundary is hit
+            
+            addTVWalkResultWithBoundary(results, config, x_param, y_param, SReferenceMap, model, min_tv, max_tv, boundary_reached);
+        }
+    }
+}
+
+/**
+ * @brief Perform scan in Total Variation Distance
+ * 
+ * x_param is always total variation distance - a walk is performed starting from equilibrium
+ * towards some other probability distribution and results are recorded at log/linear intervals.
+ * y_param varies by scan subtypes (see above) 
+ *
+ * @param config Configuration containing scan parameters and template sequences
+ * @param outputFilename Base name for output file
+ */
+void performTVScan(const Config& config, const std::string& outputFilename) {
+    std::cout << "Starting TV scan..." << std::endl;
+    
+    // Validate x parameter name
+    if (config.x_param_range.name != "tv_distance" && config.x_param_range.name != "log_tv_distance") {
+        throw std::runtime_error("TV scans always run with total variation distance as the x parameter. "
+                               "Please set the x param name as 'tv_distance' or 'log_tv_distance'.");
+    }
+    
+    std::vector<std::tuple<double,double,double,double,double,double,double,double,double,double,double,double,double,double,double,std::string>> results;
+    
+    // Dispatch to appropriate scan implementation
+    if (config.scan_subtype == "fixed_error") {
+        performFixedErrorScan(config, results);
+    } else if (config.scan_subtype == "fixed_param_rand_traj") {
+        performFixedParamRandomTrajScan(config, results);
+    } else if (config.scan_subtype == "rand_param_rand_traj") {
+        performRandomParamRandomTrajScan(config, results);
+    } else {
+        throw std::runtime_error("TV Scan must be defined with one scan subtype from "
+                               "'fixed_error', 'fixed_param_rand_traj' or 'rand_param_rand_traj'");
+    }
+    
+    // Save results
+    std::vector<std::string> headers = {
+        config.x_param_range.name, config.y_param_range.name,
+        "D(pmap(s,w)||peq(s,w))", "D(pmap(s)||peq(s))", "D(pmap(w)||peq(w))",
+        "NHelixeq", "NHelixMap", "<U>eq", "<U>map",
+        "Heq(s|w)", "Hmap(s|w)", "Heq(w)", "Hmap(w)", "Heq(s)", "Hmap(s)", "tags"
+    };
+    
+    saveTuplesToCSV(results, outputFilename, headers);
+    std::cout << "TV scan completed. Results saved to: " << outputFilename << std::endl;
 }

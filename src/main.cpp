@@ -50,6 +50,7 @@ int main(int argc, char* argv[]) {
         std::cout << "=== Configuration Summary ===" << std::endl;
         std::cout << "Config file: " << configFilename << std::endl;
         std::cout << "Scan type: " << config.scan_type << std::endl;
+        std::cout << "Scan subtype: " << config.scan_subtype << std::endl;
         std::cout << "Fold model: " << config.fold_model << std::endl;
         std::cout << "Length: " << config.length << std::endl;
         std::cout << "X parameter: " << config.x_param_range.name 
@@ -75,10 +76,10 @@ int main(int argc, char* argv[]) {
         // Route to appropriate scan function
         if (config.scan_type == "bernoulli") {
             performBernoulliScan(config, outputFilename);
-            
         } else if (config.scan_type == "error") {
-            performErrorScan(config, outputFilename);
-            
+            performErrorScan(config, outputFilename); 
+        } else if (config.scan_type == "tvwalk") {
+            performTVScan(config,outputFilename);
         } else {
             throw std::runtime_error("Unknown scan type: " + config.scan_type + 
                                    ". Supported types: bernoulli, error");
