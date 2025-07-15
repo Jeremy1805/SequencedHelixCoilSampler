@@ -73,10 +73,12 @@
         {
             "label": "Build Release",
             "type": "shell",
-            "command": "bash",
+            "command": "cmake",
             "args": [
-                "-c",
-                "cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS='-O3 -march=native -DNDEBUG' && cmake --build build --config Release --parallel"
+                "--build", "build",
+                "--config", "Release",
+                "--parallel",
+                "--verbose"
             ],
             "group": "build",
             "presentation": {
@@ -124,7 +126,7 @@
             "dependsOrder": "sequence",
             "dependsOn": [
                 "Build Release",
-                "Run Bernoulli Test"
+                "Run Fixed Error TV Test"
             ],
             "group": {
                 "kind": "build",
@@ -145,6 +147,66 @@
             "command": "./build/main",
             "args": [
                 "./test/config/bernoulli_test.json",
+                "./build/results"
+            ],
+            "group": "test",
+            "dependsOn": "Prepare Results Directory",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Run Fixed Error TV Test",
+            "type": "shell",
+            "command": "./build/main",
+            "args": [
+                "./test/config/tvwalk_test.json",
+                "./build/results"
+            ],
+            "group": "test",
+            "dependsOn": "Prepare Results Directory",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Run FPRT TV Test",
+            "type": "shell",
+            "command": "./build/main",
+            "args": [
+                "./test/config/tvwalk_fprt_test.json",
+                "./build/results"
+            ],
+            "group": "test",
+            "dependsOn": "Prepare Results Directory",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Run RPRT TV Test",
+            "type": "shell",
+            "command": "./build/main",
+            "args": [
+                "./test/config/tvwalk_rprt_test.json",
                 "./build/results"
             ],
             "group": "test",
@@ -222,6 +284,69 @@
             "problemMatcher": []
         },
         {
+            "label": "Compare Fixed Error TV Results",
+            "type": "shell",
+            "command": "python3",
+            "args": [
+                "scripts/compare_tsv.py",
+                "./build/results/tvwalk_test_results.tsv",
+                "./test/expected/tvwalk_expected.tsv"
+            ],
+            "group": "test",
+            "dependsOn": "Run Error Test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Compare FPRT TV Results",
+            "type": "shell",
+            "command": "python3",
+            "args": [
+                "scripts/compare_tsv.py",
+                "./build/results/tvwalk_fprt_test_results.tsv",
+                "./test/expected/tvwalk_fprt_expected.tsv"
+            ],
+            "group": "test",
+            "dependsOn": "Run Error Test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Compare RPRT TV Results",
+            "type": "shell",
+            "command": "python3",
+            "args": [
+                "scripts/compare_tsv.py",
+                "./build/results/tvwalk_rprt_test_results.tsv",
+                "./test/expected/tvwalk_rprt_expected.tsv"
+            ],
+            "group": "test",
+            "dependsOn": "Run Error Test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "CI: Full Test Suite",
             "dependsOrder": "sequence",
             "dependsOn": [
@@ -229,8 +354,14 @@
                 "Build Release",
                 "Run Bernoulli Test",
                 "Run Error Test",
+                "Run Fixed Error TV Test",
+                "Run FPRT TV Test",
+                "Run RPRT TV Test",
                 "Compare Bernoulli Results",
-                "Compare Error Results"
+                "Compare Error Results",
+                "Compare Fixed Error TV Results",
+                "Compare FPRT TV Results",
+                "Compare RPRT TV Results"
             ],
             "group": "build",
             "presentation": {
@@ -243,10 +374,13 @@
             }
         },
         {
-            "label": "Clean Build",
+            "label": "Build Release (Clean)",
             "type": "shell",
-            "command": "rm",
-            "args": ["-rf", "build"],
+            "command": "bash",
+            "args": [
+                "-c",
+                "rm -rf build && cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS='-O3 -march=native -DNDEBUG' && cmake --build build --config Release --parallel"
+            ],
             "group": "build",
             "presentation": {
                 "echo": true,
@@ -256,7 +390,18 @@
                 "showReuseMessage": true,
                 "clear": false
             },
-            "problemMatcher": []
-        }
+            "problemMatcher": {
+                "owner": "cpp",
+                "fileLocation": ["relative", "${workspaceFolder}"],
+                "pattern": {
+                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            }
+        },
     ]
 }

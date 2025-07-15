@@ -3,7 +3,11 @@
 #include "Utilities.h"      
 #include "CustomMatrix.h"               
 #include <omp.h>
+#include <limits>
 
+#ifndef NORMALIZATION_TOLERANCE
+#define NORMALIZATION_TOLERANCE 1e-8
+#endif
 
 /**
  * @brief Validate matrix properties for physical consistency
@@ -25,6 +29,7 @@
  * - End vector has non-negative elements
  * - No NaN or infinite values
  */
+ 
 void validateMatrices(const Eigen::MatrixXd& transferMatrix,
                      const Eigen::RowVectorXd& startVector,
                      const Eigen::VectorXd& endVector,
@@ -177,8 +182,12 @@ std::string IsingVar::GetW(std::string SW){
 }
 
 void IsingVar::GetEquilibrumTable() {
+    if (equilibrium_defined) {
+        throw std::runtime_error("Attempt to generate equilibrium table for model with equilibrium table defined.");
+    }
     EquilibriumPartitionMapGenerator::generateWithPartition(EquilibriumTable,SEquilibriumMap,WEquilibriumMap,EquilibriumValidation,
         L, EqSWMatrix, EqSWstart, EqSWend, SWZnum, EqSWMatrix.rows(), IsingSlookup, IsingWlookup);
+    equilibrium_defined = true;
 }
 
 void IsingVar::printEquilibriumTable() {
@@ -395,12 +404,20 @@ std::tuple<double,double,double,double,double,double,double,double,double,double
         }
         // std::cout << pair.first << " " << SCopyMap[pair.first] << " "<< SCopyMap[pair.first]*log(SCopyMap[pair.first]/pair.second) << " " << KL_S << std::endl;
     }
-    std::cout << "S copy distribution validation: " << validation << std::endl;
+
+    if (std::abs(validation - 1.0) > NORMALIZATION_TOLERANCE) {
+        std::ostringstream oss;
+        oss << "SCopy: Probability sum  " << std::fixed << std::setprecision(15) << validation <<
+            " deviates from 1.0 by more than tolerance " << std::fixed << std::setprecision(15) << NORMALIZATION_TOLERANCE;
+        throw std::runtime_error(oss.str());
+    }
     
-    #ifdef _OPENMP
-    std::cout << "OpenMP is enabled" << std::endl;
-    #else
-    std::cout << "OpenMP is not enabled" << std::endl;
+    #ifndef NDEBUG
+        #ifdef _OPENMP
+        std::cout << "OpenMP is enabled" << std::endl;
+        #else
+        std::cout << "OpenMP is not enabled" << std::endl;
+        #endif
     #endif
 
     KL_SW = 0.0;
@@ -453,7 +470,10 @@ std::tuple<double,double,double,double,double,double,double,double,double,double
         EWeq += helix_count*pair.second;
     }
     uniCondEntropy = uniCondEntropy - HWcopy;
-    std::cout << "W copy distribution validation: " << validation << std::endl;
+    if (std::abs(validation - 1.0) > NORMALIZATION_TOLERANCE) {
+        throw std::runtime_error("WCopy: Probability sum " + std::to_string(validation) + 
+                                " deviates from 1.0 by more than tolerance " + std::to_string(NORMALIZATION_TOLERANCE));
+    }
     return( std::make_tuple(KL_SW,KL_S,KL_W,EWeq,EWuni,eqEnergy,uniEnergy,eqCondEntropy,uniCondEntropy,HWeq,HWcopy,HSeq,HScopy) );
 }
 
@@ -491,7 +511,13 @@ std::tuple<double,double,double,double,double,double,double,double,double,double
         HSeq += -pair.second*log(pair.second);
         KL_S += SCopyMap[pair.first]*log(SCopyMap[pair.first]/pair.second);
     }
-    std::cout << "S copy distribution validation: " << validation << std::endl;
+
+    if (std::abs(validation - 1.0) > NORMALIZATION_TOLERANCE) {
+        std::ostringstream oss;
+        oss << "SCopy: Probability sum  " << std::fixed << std::setprecision(15) << validation <<
+            " deviates from 1.0 by more than tolerance " << std::fixed << std::setprecision(15) << NORMALIZATION_TOLERANCE;
+        throw std::runtime_error(oss.str());
+    }
     
     #ifdef _OPENMP
     std::cout << "OpenMP is enabled" << std::endl;
@@ -551,7 +577,10 @@ std::tuple<double,double,double,double,double,double,double,double,double,double
     saveMapToTSV(WEquilibriumMap, "FOLDEq"+filename);
     saveMapToTSV(WCopyMap, "FOLDMap"+filename);
     
-    std::cout << "W copy distribution validation: " << validation << std::endl;
+    if (std::abs(validation - 1.0) > NORMALIZATION_TOLERANCE) {
+        throw std::runtime_error("WCopy: Probability sum " + std::to_string(validation) + 
+                                " deviates from 1.0 by more than tolerance " + std::to_string(NORMALIZATION_TOLERANCE));
+    }
     return( std::make_tuple(KL_SW,KL_S,KL_W,EWeq,EWuni,eqEnergy,uniEnergy,eqCondEntropy,uniCondEntropy,HWeq,HWcopy,HSeq,HScopy) );
 }
 
@@ -874,6 +903,150 @@ std::pair<std::unordered_map<std::string,double>,double> IsingVar::GetVectorAndA
     return(std::pair(vector,angle));
 }
 
+// Implementations for explorations in Total Variation (TV) distance.
+const double IsingVar::CalculateTotalVariationDistance(
+    const std::unordered_map<std::string,double>& prob1,
+    const std::unordered_map<std::string,double>& prob2) {
+    
+    double tv_distance = 0.0;
+    
+    // Use prob1 as reference and check that all keys exist in prob2
+    for (const auto& pair : prob1) {
+        const std::string& key = pair.first;
+        double p1 = pair.second;
+        
+        auto it = prob2.find(key);
+        if (it == prob2.end()) {
+            throw std::runtime_error("Key '" + key + "' found in prob1 but not in prob2");
+        }
+        
+        double p2 = it->second;
+
+        tv_distance += std::abs(p1 - p2);
+
+        //std::cout << pair.first << " " << pair.second << " " <<  it->second << " " <<  std::abs(p1 - p2) << std::endl;
+    }
+    
+    return 0.5 * tv_distance;
+}
+
+std::unordered_map<std::string,double> IsingVar::TVWalk(
+    const std::unordered_map<std::string,double>& targetProb,
+    double targetTV) {
+    
+    // Calculate current TV distance from equilibrium to target
+    double currentTV = CalculateTotalVariationDistance(SEquilibriumMap, targetProb);
+    
+    // Calculate interpolation parameter t
+    // For linear interpolation: TV(P_eq, P(t)) = t * TV(P_eq, P_target)
+    double t = (currentTV > 1e-15) ? targetTV / currentTV : 0.0;
+    // std::cout << "t/" << currentTV << "/" << targetTV<< std::endl;
+    // Delegate to parametric walk
+    return TVWalkParametric(targetProb, t);
+}
+
+std::unordered_map<std::string,double> IsingVar::TVWalkParametric(
+    const std::unordered_map<std::string,double>& targetProb,
+    double t) {
+    
+    std::unordered_map<std::string,double> result;
+    
+    // Use equilibrium as reference for keys
+    double total = 0.0;
+    double eq_total = 0.0;
+    double target_total = 0.0;
+    for (const auto& pair : SEquilibriumMap) {
+        const std::string& seq = pair.first;
+        double p_eq = pair.second;
+        
+        auto it = targetProb.find(seq);
+        if (it == targetProb.end()) {
+            throw std::runtime_error("Sequence '" + seq + "' found in equilibrium but not in target distribution");
+        }
+        double p_target = it->second;
+        
+        double p_interpolated = (1.0 - t) * p_eq + t * p_target;
+        
+        result[seq] = p_interpolated;
+        eq_total += p_eq;
+        total += p_interpolated;
+        target_total += p_target;
+    }
+    
+    // Check if probabilities sum to approximately 1.0
+    if (std::abs(total - 1.0) > NORMALIZATION_TOLERANCE) {
+        std::ostringstream oss;
+        oss << "TVWalkParametric: Probability sum " << std::fixed << std::setprecision(15) << total <<
+            " deviates from 1.0 by more than tolerance " << std::fixed << std::setprecision(15) << NORMALIZATION_TOLERANCE
+            << ". Equilibrium total: " << std::fixed << std::setprecision(15) << eq_total << " / " << "Target total: " 
+            << std::fixed << std::setprecision(15) << target_total << "/ " << "t: " << t <<". Consider if the equilibrium and reference distributions are too close.";
+        throw std::runtime_error(oss.str());
+    }
+    
+    return result;
+}
+
+std::pair<double, double> IsingVar::FindTotalVariationDistanceRange(const std::unordered_map<std::string,double>& targetProb) {
+    
+    double max_t = std::numeric_limits<double>::infinity();   // Start with positive infinity
+    double min_t = -std::numeric_limits<double>::infinity();  // Start with negative infinity
+    
+    // Use equilibrium as reference for keys
+    for (const auto& pair : SEquilibriumMap) {
+        const std::string& seq = pair.first;
+        double p_eq = pair.second;
+        
+        auto it = targetProb.find(seq);
+        if (it == targetProb.end()) {
+            throw std::runtime_error("Sequence '" + seq + "' found in equilibrium but not in target distribution");
+        }
+        double p_target = it->second;
+        
+        // For interpolation: p_interpolated = (1-t) * p_eq + t * p_target
+        // We need: 0 <= p_interpolated <= 1
+        
+        if (p_target != p_eq) {  // Avoid division by zero
+            // Non-negativity constraint: (1-t) * p_eq + t * p_target >= 0
+            // Rearranging: t * (p_target - p_eq) >= -p_eq
+            if (p_target < p_eq) {
+                // p_target - p_eq < 0, so dividing flips inequality: t <= bound
+                double t_bound = -p_eq / (p_target - p_eq);
+                max_t = std::min(max_t, t_bound);
+            } else {
+                // p_target - p_eq > 0, so inequality stays: t >= bound  
+                double t_bound = -p_eq / (p_target - p_eq);
+                min_t = std::max(min_t, t_bound);
+            }
+            
+            // Upper bound constraint: (1-t) * p_eq + t * p_target <= 1
+            // Rearranging: t * (p_target - p_eq) <= 1 - p_eq
+            if (p_target > p_eq) {
+                // p_target - p_eq > 0, so inequality stays: t <= bound
+                double t_bound = (1.0 - p_eq) / (p_target - p_eq);
+                max_t = std::min(max_t, t_bound);
+            } else {
+                // p_target - p_eq < 0, so dividing flips inequality: t >= bound
+                double t_bound = (1.0 - p_eq) / (p_target - p_eq);
+                min_t = std::max(min_t, t_bound);
+            }
+        }
+    }
+    
+    // Validate that we have a valid range
+    if (min_t > max_t) {
+        throw std::runtime_error("FindTotalVariationDistanceRange: No valid t range exists (min_t=" + 
+                               std::to_string(min_t) + " > max_t=" + std::to_string(max_t) + 
+                               "). Distributions are incompatible.");
+    }
+    
+    // Calculate TV distances at both extremes using linearity
+    double tv_distance_full = CalculateTotalVariationDistance(SEquilibriumMap, targetProb);
+    double max_tv = tv_distance_full * max_t;
+    double min_tv = tv_distance_full * min_t;  // This will be negative since min_t < 0
+    
+    return std::make_pair(min_tv, max_tv);
+}
+
 // Ising2 constructor implementations
 Ising2::Ising2(const Eigen::MatrixXd& transferMatrix,
        const Eigen::RowVectorXd& startVector,
@@ -921,6 +1094,7 @@ Ising2::Ising2(const Eigen::MatrixXd& transferMatrix,
     Qstart = Eigen::Vector2d::Zero();
     Qend = Eigen::Vector2d::Zero();
     
+    //std::cout << EqSWMatrix << std::endl;
     // Calculate derived quantities
     CalcAllEigen();
     CalcAllPartition();
@@ -1074,7 +1248,7 @@ Ising2::Ising2(unsigned int seed, int l) {
         EqSWend(i) = dist(gen);
     }
 
-    std::cout << EqSWMatrix << std::endl;
+    // std::cout << EqSWMatrix << std::endl;
     L = l;
 
     CalcAllEigen();
