@@ -3,7 +3,11 @@
 #include "Utilities.h"      
 #include "CustomMatrix.h"               
 #include <omp.h>
+#include <limits>
 
+#ifndef NORMALIZATION_TOLERANCE
+#define NORMALIZATION_TOLERANCE 1e-8
+#endif
 
 /**
  * @brief Validate matrix properties for physical consistency
@@ -25,6 +29,7 @@
  * - End vector has non-negative elements
  * - No NaN or infinite values
  */
+ 
 void validateMatrices(const Eigen::MatrixXd& transferMatrix,
                      const Eigen::RowVectorXd& startVector,
                      const Eigen::VectorXd& endVector,
@@ -159,6 +164,16 @@ double GFold::CalcWfromMatrices(std::string seq) {
     return(prob.sum());
 }
 
+void GFold::UpdateEpsilon(double epsilon) {
+    if (matrix_fraction_defined) {
+        for (size_t j = 0; j < start_vec_frac.cols;j++) {
+            start_vec_frac(0,j).epsilon = epsilon;
+        }
+    } else {
+        throw std::runtime_error("Cannot update epsilon: matrix fraction list not defined.");
+    }
+}
+
 // IsingVar method implementations
 std::string IsingVar::GetS(std::string SW){
     std::string ans = "";
@@ -177,8 +192,13 @@ std::string IsingVar::GetW(std::string SW){
 }
 
 void IsingVar::GetEquilibrumTable() {
+    if (equilibrium_defined) {
+        throw std::runtime_error("Attempt to generate equilibrium table for model with equilibrium table defined.");
+    }
+
     EquilibriumPartitionMapGenerator::generateWithPartition(EquilibriumTable,SEquilibriumMap,WEquilibriumMap,EquilibriumValidation,
         L, EqSWMatrix, EqSWstart, EqSWend, SWZnum, EqSWMatrix.rows(), IsingSlookup, IsingWlookup);
+    equilibrium_defined = true;
 }
 
 void IsingVar::printEquilibriumTable() {
@@ -311,7 +331,7 @@ std::unordered_map<std::string,double> IsingVar::SampleRandomProb(unsigned int s
     for (const auto& pair : SCopyMap) {
         SCopyMap[pair.first] = SCopyMap[pair.first]/normalization;
     }
-   
+    
     return SCopyMap;
 }
 
@@ -334,7 +354,7 @@ std::unordered_map<std::string,double> IsingVar::GenerateFromUniformTemplate(std
         
         for (auto template_str: template_ls) {
             int differences = 0;
-            for (int i = 0; i < template_str.length(); i++) {
+            for (size_t i = 0; i < template_str.length(); i++) {
                 if (template_str[i] != binary[i]) {
                     differences++;
                 }
@@ -359,6 +379,7 @@ double IsingVar::CalcFoldEnergy(std::string foldseq) {
 }
 
 std::tuple<double,double,double,double,double,double,double,double,double,double,double,double,double> IsingVar::Results(std::unordered_map<std::string,double> SCopyMapIn) {
+
     double KL_SW = 0.0;
     double KL_S = 0.0;
     double KL_W = 0.0;
@@ -395,12 +416,20 @@ std::tuple<double,double,double,double,double,double,double,double,double,double
         }
         // std::cout << pair.first << " " << SCopyMap[pair.first] << " "<< SCopyMap[pair.first]*log(SCopyMap[pair.first]/pair.second) << " " << KL_S << std::endl;
     }
-    std::cout << "S copy distribution validation: " << validation << std::endl;
+
+    if (std::abs(validation - 1.0) > NORMALIZATION_TOLERANCE) {
+        std::ostringstream oss;
+        oss << "SCopy: Probability sum  " << std::fixed << std::setprecision(15) << validation <<
+            " deviates from 1.0 by more than tolerance " << std::fixed << std::setprecision(15) << NORMALIZATION_TOLERANCE;
+        throw std::runtime_error(oss.str());
+    }
     
-    #ifdef _OPENMP
-    std::cout << "OpenMP is enabled" << std::endl;
-    #else
-    std::cout << "OpenMP is not enabled" << std::endl;
+    #ifndef NDEBUG
+        #ifdef _OPENMP
+        std::cout << "OpenMP is enabled" << std::endl;
+        #else
+        std::cout << "OpenMP is not enabled" << std::endl;
+        #endif
     #endif
 
     KL_SW = 0.0;
@@ -453,7 +482,10 @@ std::tuple<double,double,double,double,double,double,double,double,double,double
         EWeq += helix_count*pair.second;
     }
     uniCondEntropy = uniCondEntropy - HWcopy;
-    std::cout << "W copy distribution validation: " << validation << std::endl;
+    if (std::abs(validation - 1.0) > NORMALIZATION_TOLERANCE) {
+        throw std::runtime_error("WCopy: Probability sum " + std::to_string(validation) + 
+                                " deviates from 1.0 by more than tolerance " + std::to_string(NORMALIZATION_TOLERANCE));
+    }
     return( std::make_tuple(KL_SW,KL_S,KL_W,EWeq,EWuni,eqEnergy,uniEnergy,eqCondEntropy,uniCondEntropy,HWeq,HWcopy,HSeq,HScopy) );
 }
 
@@ -491,7 +523,13 @@ std::tuple<double,double,double,double,double,double,double,double,double,double
         HSeq += -pair.second*log(pair.second);
         KL_S += SCopyMap[pair.first]*log(SCopyMap[pair.first]/pair.second);
     }
-    std::cout << "S copy distribution validation: " << validation << std::endl;
+
+    if (std::abs(validation - 1.0) > NORMALIZATION_TOLERANCE) {
+        std::ostringstream oss;
+        oss << "SCopy: Probability sum  " << std::fixed << std::setprecision(15) << validation <<
+            " deviates from 1.0 by more than tolerance " << std::fixed << std::setprecision(15) << NORMALIZATION_TOLERANCE;
+        throw std::runtime_error(oss.str());
+    }
     
     #ifdef _OPENMP
     std::cout << "OpenMP is enabled" << std::endl;
@@ -551,7 +589,10 @@ std::tuple<double,double,double,double,double,double,double,double,double,double
     saveMapToTSV(WEquilibriumMap, "FOLDEq"+filename);
     saveMapToTSV(WCopyMap, "FOLDMap"+filename);
     
-    std::cout << "W copy distribution validation: " << validation << std::endl;
+    if (std::abs(validation - 1.0) > NORMALIZATION_TOLERANCE) {
+        throw std::runtime_error("WCopy: Probability sum " + std::to_string(validation) + 
+                                " deviates from 1.0 by more than tolerance " + std::to_string(NORMALIZATION_TOLERANCE));
+    }
     return( std::make_tuple(KL_SW,KL_S,KL_W,EWeq,EWuni,eqEnergy,uniEnergy,eqCondEntropy,uniCondEntropy,HWeq,HWcopy,HSeq,HScopy) );
 }
 
@@ -669,6 +710,16 @@ void IsingVar::getIndependentMatrixFractions(int SWalphabetsize,int ssize, int w
     std::vector<std::vector<Eigen::MatrixXd>> seq_matrices = std::vector(ssize,std::vector(ssize,default_matrix));
     std::vector<Eigen::VectorXd> end_vectors = std::vector(ssize,default_vector);
     
+    //TEMPORARY: clear the slice vectors 
+    for (int i = 0; i < SWalphabetsize; i++) {
+        char skey = IsingSlookup[INT_TO_CHAR[i]];
+        int s = CHAR_TO_INT[skey];
+        char wkey = IsingWlookup[INT_TO_CHAR[i]];
+        int w = CHAR_TO_INT[wkey];
+        IsingWSlices[wkey] = std::vector<size_t>(0);
+        IsingSSlices[skey] = std::vector<size_t>(0);
+    }
+
     for (int i = 0; i < SWalphabetsize; i++) {
         char skey = IsingSlookup[INT_TO_CHAR[i]];
         int s = CHAR_TO_INT[skey];
@@ -709,7 +760,7 @@ double IsingVar::CalcWCopyfromMatrixFrac(std::string seq) {
     std::cout << running(0,0).ls.size() << std::endl;
     Matrix<MatrixFraction> sliced_end = end_vec_frac.slice(IsingWSlices[seq[L-1]],{0});
     double result = 0.0;
-    for (int j = 0; j < sliced_end.rows; j++){
+    for (size_t j = 0; j < sliced_end.rows; j++){
         result += running(0,j).Finisher(sliced_end(j,0));
     }
     return(result);
@@ -718,11 +769,11 @@ double IsingVar::CalcWCopyfromMatrixFrac(std::string seq) {
 std::tuple<int,double> IsingVar::CalcWCopyandVectorComplexity(std::string seq) {
     Matrix<VectorFractionList> running = start_vec_frac.slice({0},IsingWSlices[seq[0]]);
     for (int i = 1; i < L; i++) { 
-         running = running * indep_mat_frac.slice(IsingWSlices[seq[i-1]],IsingWSlices[seq[i]]);
+        running = running * indep_mat_frac.slice(IsingWSlices[seq[i-1]],IsingWSlices[seq[i]]);
     }
     Matrix<MatrixFraction> sliced_end = end_vec_frac.slice(IsingWSlices[seq[L-1]],{0});
     double result = 0.0;
-    for (int j = 0; j < sliced_end.rows; j++){
+    for (size_t j = 0; j < sliced_end.rows; j++){
         result += running(0,j).Finisher(sliced_end(j,0));
     }
     return(std::make_tuple(running(0,0).ls.size()+running(0,1).ls.size(),result));
@@ -874,6 +925,150 @@ std::pair<std::unordered_map<std::string,double>,double> IsingVar::GetVectorAndA
     return(std::pair(vector,angle));
 }
 
+// Implementations for explorations in Total Variation (TV) distance.
+const double IsingVar::CalculateTotalVariationDistance(
+    const std::unordered_map<std::string,double>& prob1,
+    const std::unordered_map<std::string,double>& prob2) {
+    
+    double tv_distance = 0.0;
+    
+    // Use prob1 as reference and check that all keys exist in prob2
+    for (const auto& pair : prob1) {
+        const std::string& key = pair.first;
+        double p1 = pair.second;
+        
+        auto it = prob2.find(key);
+        if (it == prob2.end()) {
+            throw std::runtime_error("Key '" + key + "' found in prob1 but not in prob2");
+        }
+        
+        double p2 = it->second;
+
+        tv_distance += std::abs(p1 - p2);
+
+        //std::cout << pair.first << " " << pair.second << " " <<  it->second << " " <<  std::abs(p1 - p2) << std::endl;
+    }
+    
+    return 0.5 * tv_distance;
+}
+
+std::unordered_map<std::string,double> IsingVar::TVWalk(
+    const std::unordered_map<std::string,double>& targetProb,
+    double targetTV) {
+    
+    // Calculate current TV distance from equilibrium to target
+    double currentTV = CalculateTotalVariationDistance(SEquilibriumMap, targetProb);
+    
+    // Calculate interpolation parameter t
+    // For linear interpolation: TV(P_eq, P(t)) = t * TV(P_eq, P_target)
+    double t = (currentTV > 1e-15) ? targetTV / currentTV : 0.0;
+    // std::cout << "t/" << currentTV << "/" << targetTV<< std::endl;
+    // Delegate to parametric walk
+    return TVWalkParametric(targetProb, t);
+}
+
+std::unordered_map<std::string,double> IsingVar::TVWalkParametric(
+    const std::unordered_map<std::string,double>& targetProb,
+    double t) {
+    
+    std::unordered_map<std::string,double> result;
+    
+    // Use equilibrium as reference for keys
+    double total = 0.0;
+    double eq_total = 0.0;
+    double target_total = 0.0;
+    for (const auto& pair : SEquilibriumMap) {
+        const std::string& seq = pair.first;
+        double p_eq = pair.second;
+        
+        auto it = targetProb.find(seq);
+        if (it == targetProb.end()) {
+            throw std::runtime_error("Sequence '" + seq + "' found in equilibrium but not in target distribution");
+        }
+        double p_target = it->second;
+        
+        double p_interpolated = (1.0 - t) * p_eq + t * p_target;
+        
+        result[seq] = p_interpolated;
+        eq_total += p_eq;
+        total += p_interpolated;
+        target_total += p_target;
+    }
+    
+    // Check if probabilities sum to approximately 1.0
+    if (std::abs(total - 1.0) > NORMALIZATION_TOLERANCE) {
+        std::ostringstream oss;
+        oss << "TVWalkParametric: Probability sum " << std::fixed << std::setprecision(15) << total <<
+            " deviates from 1.0 by more than tolerance " << std::fixed << std::setprecision(15) << NORMALIZATION_TOLERANCE
+            << ". Equilibrium total: " << std::fixed << std::setprecision(15) << eq_total << " / " << "Target total: " 
+            << std::fixed << std::setprecision(15) << target_total << "/ " << "t: " << t <<". Consider if the equilibrium and reference distributions are too close.";
+        throw std::runtime_error(oss.str());
+    }
+    
+    return result;
+}
+
+std::pair<double, double> IsingVar::FindTotalVariationDistanceRange(const std::unordered_map<std::string,double>& targetProb) {
+    
+    double max_t = std::numeric_limits<double>::infinity();   // Start with positive infinity
+    double min_t = -std::numeric_limits<double>::infinity();  // Start with negative infinity
+    
+    // Use equilibrium as reference for keys
+    for (const auto& pair : SEquilibriumMap) {
+        const std::string& seq = pair.first;
+        double p_eq = pair.second;
+        
+        auto it = targetProb.find(seq);
+        if (it == targetProb.end()) {
+            throw std::runtime_error("Sequence '" + seq + "' found in equilibrium but not in target distribution");
+        }
+        double p_target = it->second;
+        
+        // For interpolation: p_interpolated = (1-t) * p_eq + t * p_target
+        // We need: 0 <= p_interpolated <= 1
+        
+        if (p_target != p_eq) {  // Avoid division by zero
+            // Non-negativity constraint: (1-t) * p_eq + t * p_target >= 0
+            // Rearranging: t * (p_target - p_eq) >= -p_eq
+            if (p_target < p_eq) {
+                // p_target - p_eq < 0, so dividing flips inequality: t <= bound
+                double t_bound = -p_eq / (p_target - p_eq);
+                max_t = std::min(max_t, t_bound);
+            } else {
+                // p_target - p_eq > 0, so inequality stays: t >= bound  
+                double t_bound = -p_eq / (p_target - p_eq);
+                min_t = std::max(min_t, t_bound);
+            }
+            
+            // Upper bound constraint: (1-t) * p_eq + t * p_target <= 1
+            // Rearranging: t * (p_target - p_eq) <= 1 - p_eq
+            if (p_target > p_eq) {
+                // p_target - p_eq > 0, so inequality stays: t <= bound
+                double t_bound = (1.0 - p_eq) / (p_target - p_eq);
+                max_t = std::min(max_t, t_bound);
+            } else {
+                // p_target - p_eq < 0, so dividing flips inequality: t >= bound
+                double t_bound = (1.0 - p_eq) / (p_target - p_eq);
+                min_t = std::max(min_t, t_bound);
+            }
+        }
+    }
+    
+    // Validate that we have a valid range
+    if (min_t > max_t) {
+        throw std::runtime_error("FindTotalVariationDistanceRange: No valid t range exists (min_t=" + 
+                               std::to_string(min_t) + " > max_t=" + std::to_string(max_t) + 
+                               "). Distributions are incompatible.");
+    }
+    
+    // Calculate TV distances at both extremes using linearity
+    double tv_distance_full = CalculateTotalVariationDistance(SEquilibriumMap, targetProb);
+    double max_tv = tv_distance_full * max_t;
+    double min_tv = tv_distance_full * min_t;  // This will be negative since min_t < 0
+    
+    return std::make_pair(min_tv, max_tv);
+}
+
 // Ising2 constructor implementations
 Ising2::Ising2(const Eigen::MatrixXd& transferMatrix,
        const Eigen::RowVectorXd& startVector,
@@ -921,6 +1116,7 @@ Ising2::Ising2(const Eigen::MatrixXd& transferMatrix,
     Qstart = Eigen::Vector2d::Zero();
     Qend = Eigen::Vector2d::Zero();
     
+    //std::cout << EqSWMatrix << std::endl;
     // Calculate derived quantities
     CalcAllEigen();
     CalcAllPartition();
@@ -1034,7 +1230,7 @@ Ising2::Ising2(double w00, double w11, double c0, double c1, int l) {
     CalcAllPartition();
 }
 
-Ising2::Ising2(unsigned int seed, int l) {
+Ising2::Ising2(unsigned int seed, int l, std::string subtype) {
     std::mt19937_64 gen(seed);
     std::uniform_real_distribution<double> dist(1.0, 10.0);
     
@@ -1062,19 +1258,46 @@ Ising2::Ising2(unsigned int seed, int l) {
         {'3', '1'}
     };
 
+    if (subtype=="low_rank_off_diagonal"){
+        for (int i = 0; i < 2; i++) {
+            for (int j = 0; j < 2; j++) {
+                EqSWMatrix(i, j) = dist(gen);
+            }
+        }
+        for (int i = 2; i < 4; i++) {
+            for (int j = 2; j < 4; j++) {
+                EqSWMatrix(i, j) = dist(gen);
+            }
+        }
+
+        double c1 = dist(gen);
+        double c2 = dist(gen);
+        double c3 = dist(gen);
+        double c4 = dist(gen);
+
+        for (int j = 2; j < 4; j++) {
+            EqSWMatrix(0, j) = c1;
+            EqSWMatrix(1, j) = c2;
+        }
+        for (int j = 0; j < 2; j++) {
+            EqSWMatrix(2, j) = c3;
+            EqSWMatrix(3, j) = c4;
+        }
+        std::cout << EqSWMatrix <<std::endl;
+    } else {
     // Fill the matrix with random integers
-    for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 4; j++) {
-            EqSWMatrix(i, j) = dist(gen);
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                EqSWMatrix(i, j) = dist(gen);
+            }
         }
     }
     
     for (int i = 0; i < 4; i++) {
-        EqSWstart(i) = dist(gen);
-        EqSWend(i) = dist(gen);
+        EqSWstart(i) = 1.0;
+        EqSWend(i) = 1.0;
     }
 
-    std::cout << EqSWMatrix << std::endl;
     L = l;
 
     CalcAllEigen();
@@ -1083,6 +1306,11 @@ Ising2::Ising2(unsigned int seed, int l) {
 
 // Ising2 method implementations
 void Ising2::getBernoulliMatrixFractions(double bernoulli, double epsilon){
+    if(matrix_fraction_defined){
+        throw std::runtime_error("Cannot define Matrix Fractions multiple times.");
+    } else {
+        matrix_fraction_defined = true;
+    }
     int SWalphabetsize = IsingSlookup.size();
 
     // Initialize the sequence probabilities
@@ -1163,13 +1391,12 @@ std::vector<std::string> Ising2::SampleNBiasedBernoulliSequence(double p, int N,
             sequence += samp ? INT_TO_CHAR[samp_last] : INT_TO_CHAR[1-samp_last];
         }
         sampled_sequences.push_back(sequence);
-        std::cout << sequence <<std::endl;
     }
     
     return(sampled_sequences);
 }
 
-void Ising2::VerifyMatrixApproachQuenched(std::unordered_map<std::string,double> SCopyMap, double p, int trials) {
+std::tuple<double,double,double,double,double,double> Ising2::VerifyMatrixApproachQuenched(std::unordered_map<std::string,double> SCopyMap, double p, int trials) {
     std::cout << "Setting up matrices..." << std::endl;
     
     getPSWMatrices();
@@ -1190,15 +1417,15 @@ void Ising2::VerifyMatrixApproachQuenched(std::unordered_map<std::string,double>
     double JointcopyEntropy = 0.0;
     double KL_W = 0.0;
     double FoldcopyEntropy = 0.0;
+    double joint_entropy_matrix_exact = 0.0;
+    double fold_entropy_matrix_exact = 0.0;
 
     for (const auto& swdata : EquilibriumTable) {
         const double peqSW = std::get<3>(swdata);
         const auto& s_state = std::get<1>(swdata);
         const auto& w_state = std::get<2>(swdata);
-        const double foldEn = std::get<4>(swdata);
         const double s_copy_prob = SCopyMap.at(s_state);
         const double s_eq_prob = SEquilibriumMap.at(s_state);
-        const double w_eq_prob = WEquilibriumMap[w_state];
         
         const double pcopySW = peqSW * s_copy_prob / s_eq_prob;
         WCopyMap[w_state] += pcopySW;
@@ -1211,6 +1438,7 @@ void Ising2::VerifyMatrixApproachQuenched(std::unordered_map<std::string,double>
             throw std::runtime_error("VERIFICATION FAILED! ERROR OF " 
                 + std::to_string(abs(calculated-pcopySW)) + " OBTAINED!");
         }
+        joint_entropy_matrix_exact += -calculated*log(calculated);
     }
 
     std::cout << "SW Quenched Verified, now moving on to W Quenched.." << std::endl;
@@ -1221,11 +1449,12 @@ void Ising2::VerifyMatrixApproachQuenched(std::unordered_map<std::string,double>
         
         KL_W += pcopyW*log(pcopyW/WEquilibriumMap[w_state]);
         FoldcopyEntropy += -pcopyW * log(pcopyW);
-
-        if (abs(CalcWCopyfromMatrixFrac(w_state)-pcopyW) > pow(10.0,-10)) {
+        double calculated = CalcWCopyfromMatrixFrac(w_state);
+        if (abs(calculated-pcopyW) > pow(10.0,-10)) {
             throw std::runtime_error("VERIFICATION FAILED! ERROR OF " 
                 + std::to_string(abs(CalcWCopyfromMatrixFrac(w_state)-pcopyW)) + " OBTAINED!");
         }
+        fold_entropy_matrix_exact += -calculated*log(calculated);
     }
 
     double joint_entropy_est = 0.0;
@@ -1239,13 +1468,13 @@ void Ising2::VerifyMatrixApproachQuenched(std::unordered_map<std::string,double>
         joint_entropy_est += 1.0/double(trials)*std::get<2>(sample);
         fold_entropy_est += -1.0/double(trials)*log(CalcWCopyfromMatrixFrac(std::get<1>(sample)));
     }
-    std::cout << "Estimated Joint Entropy of " << joint_entropy_est << " Versus True " << JointcopyEntropy <<std::endl;
-    std::cout << "Estimated Fold Entropy of " << fold_entropy_est << " Versus True " << FoldcopyEntropy <<std::endl;
+    
+    std::cout << "Estimated Joint Entropy of " << joint_entropy_est << " Versus True " << joint_entropy_matrix_exact << "/" << JointcopyEntropy <<std::endl;
+    std::cout << "Estimated Fold Entropy of " << fold_entropy_est << " Versus True " <<  fold_entropy_matrix_exact << "/"<< FoldcopyEntropy <<std::endl;
+    return(std::tuple<double,double,double,double,double,double>(joint_entropy_est,joint_entropy_matrix_exact,JointcopyEntropy,fold_entropy_est,fold_entropy_matrix_exact,FoldcopyEntropy));
 }
 
 std::tuple<double,double,double,double> Ising2::SampleBernoulliEntropies(double p, int trials, int seed) {
-    getBernoulliMatrixFractions(0.1);
-
     Eigen::VectorXd joint_entropy_vec(trials);
     Eigen::VectorXd fold_entropy_vec(trials);
 

@@ -31,7 +31,7 @@ void EquilibriumPartitionMapGenerator::generateRecursiveTail(
     if (__builtin_expect(position < 0, 0)) {
         const int lastIndex = charToInt(parentState.lastChar);
         const double prob = parentState.value/normalization * start(lastIndex);
-        const double energy = -log(parentState.value);
+        const double energy = -log(parentState.value*start(lastIndex));
         validation += prob;
         
         results.emplace_back(current, sequence, fold, prob, energy);

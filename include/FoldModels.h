@@ -76,7 +76,9 @@ public:
     Eigen::VectorXd Qend;       ///< Ending vector for quenched disorder calculations
 
     int L; ///< Real polymer length (number of monomers)
-    
+    bool equilibrium_defined = false; //flag to avoid overwriting the equilibrium distribution
+    bool matrix_fraction_defined = false; //flag to avoid overwriting matrix fractions once written
+
     /// Complete equilibrium table with all sequence-weight combinations
     std::vector<std::tuple<std::string, std::string, std::string, double, double>> EquilibriumTable;
     std::unordered_map<std::string, double> SEquilibriumMap; ///< Sequence probability map
@@ -152,6 +154,12 @@ public:
      * @return Marginal probability P(weight)
      */
     double CalcWfromMatrices(std::string seq);
+
+    /**
+     * @brief Updates epsilon of start_vec_frac to change the tolerance of matrix fraction calculations
+     * @param epsilon new tolerance for matrix fraction calculations   
+     */
+    void UpdateEpsilon(double epsilon);
 };
 
 /**
@@ -363,6 +371,76 @@ public:
      * @return Pair of (tangent_vector, angle) for arc representation
      */
     std::pair<std::unordered_map<std::string,double>,double> GetVectorAndArc(std::unordered_map<std::string,double> SCopyMap);
+
+    // Total Variation distance methods
+    
+    /**
+    * @brief Calculate Total Variation distance between two probability distributions
+    * @param prob1 First probability distribution (reference)
+    * @param prob2 Second probability distribution
+    * @return Total Variation distance (0 to 1)
+    * 
+    * TV(P,Q) = 0.5 * sum_i |P(i) - Q(i)|
+    * Uses prob1 as reference - throws error if prob2 missing any keys from prob1
+    */
+    
+    static const double CalculateTotalVariationDistance(const std::unordered_map<std::string,double>& prob1,
+                                         const std::unordered_map<std::string,double>& prob2);
+    
+    /**
+    * @brief Walk in Total Variation space from equilibrium toward target distribution
+    * @param targetProb Target probability distribution
+    * @param targetTV Target Total Variation distance from equilibrium
+    * @return New probability distribution at the specified TV distance
+    * 
+    * This function calculates the parameter t and delegates to TVWalkParametric.
+    * TV distance scales linearly: TV(P_eq, P(t)) = t * TV(P_eq, P_target)
+    * 
+    * Note: t can exceed 1.0, allowing walks beyond the target distribution.
+    */
+    std::unordered_map<std::string,double> TVWalk(const std::unordered_map<std::string,double>& targetProb,
+                                                  double targetTV);
+
+    /**
+    * @brief Walk in TV space using parametric approach
+    * @param targetProb Target probability distribution
+    * @param t Parameter where 0=equilibrium, 1=target (can exceed 1 for extrapolation)
+    * @return Probability distribution at parameter t
+    * 
+    * This provides direct parameterization where TV distance scales linearly with t.
+    * TV(P_eq, P(t)) = t * TV(P_eq, P_target)
+    * 
+    * Throws error if resulting probabilities don't sum to approximately 1.0
+    */
+    std::unordered_map<std::string,double> TVWalkParametric(const std::unordered_map<std::string,double>& targetProb,
+                                                           double t);
+    
+    /**
+    * @brief Finds the maximum and minimum value of tv (though negative tv is actually impossible, this informally means tv along the opposite direction) along a particular direction
+    * @param targetProb Target probability distribution
+    * @return (min_tv,max_tv)
+    */
+    std::pair<double, double> FindTotalVariationDistanceRange(const std::unordered_map<std::string,double>& targetProb);
+
+
+    /***
+    Virtual parent functions 
+    ***/
+
+    /**
+     * @brief Set up matrix fractions for Bernoulli sequence model
+     * @param bernoulli Probability of state 0 in Bernoulli model
+     * @param epsilon Numerical precision parameter
+     */
+    virtual void getBernoulliMatrixFractions(double bernoulli, double epsilon) = 0;
+
+    /**
+     * @brief Sample sequence and fold from quenched Bernoulli model
+     * @param p Bernoulli parameter for sequence generation
+     * @param gen Random number generator
+     * @return Tuple of (sequence, fold, total_probability)
+     */
+    virtual std::tuple<std::string,std::string, double> SampleQuenchedBernoulli(double p, std::mt19937_64& gen) = 0;
 };
 
 /**
@@ -433,7 +511,7 @@ public:
      * @param seed Random seed for parameter generation
      * @param l Polymer length
      */
-    Ising2(unsigned int seed, int l);
+    Ising2(unsigned int seed, int l, std::string subtype="none");
 
     /**
      * @brief Set up matrix fractions for Bernoulli sequence model
@@ -476,7 +554,7 @@ public:
      * @param p Bernoulli parameter for validation sampling
      * @param trials Number of Monte Carlo trials for validation
      */
-    void VerifyMatrixApproachQuenched(std::unordered_map<std::string,double> SCopyMap, double p, int trials);
+    std::tuple<double,double,double,double,double,double> VerifyMatrixApproachQuenched(std::unordered_map<std::string,double> SCopyMap, double p, int trials);
 
     /**
      * @brief Sample entropy estimates from Bernoulli model
@@ -532,6 +610,23 @@ public:
      * @param l Polymer length
      */
     Ising2S3F(double w00, double w11, double a01, double a10, double v, int l);
+
+    /**
+     * @brief Set up matrix fractions for Bernoulli sequence model
+     * @param bernoulli Probability of state 0 in Bernoulli model
+     * @param epsilon Numerical precision parameter
+     */
+    void getBernoulliMatrixFractions(double bernoulli, double epsilon) {};
+
+    /**
+     * @brief Sample sequence and fold from quenched Bernoulli model
+     * @param p Bernoulli parameter for sequence generation
+     * @param gen Random number generator
+     * @return Tuple of (sequence, fold, total_probability)
+     */
+    std::tuple<std::string,std::string, double> SampleQuenchedBernoulli(double p, std::mt19937_64& gen) {
+        return(std::make_tuple<std::string,std::string, double>("NOT IMPLEMENTED","NOT IMPLEMENTED",0));
+    };
 };
 
 #endif // FOLDMODELS_H
