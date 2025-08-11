@@ -77,12 +77,16 @@ int main(int argc, char* argv[]) {
         if (config.scan_type == "bernoulli") {
             performBernoulliScan(config, outputFilename);
         } else if (config.scan_type == "error") {
-            performErrorScan(config, outputFilename); 
+            performErrorScan(config,outputFilename); 
         } else if (config.scan_type == "tvwalk") {
             performTVScan(config,outputFilename);
+        } else if (config.scan_type == "longbernoulliverify") {
+            performLongBernVerifyScan(config,outputFilename);
+        } else if (config.scan_type == "longentropyverify"){
+            performLongEntropyVerify(config,outputFilename);
         } else {
             throw std::runtime_error("Unknown scan type: " + config.scan_type + 
-                                   ". Supported types: bernoulli, error");
+                                   ". Supported types: bernoulli, error, tvwalk, longbernoulliverify, longentropyverify");
         }
         
         std::cout << std::endl << "Scan completed successfully!" << std::endl;

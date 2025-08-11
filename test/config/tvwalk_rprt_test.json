@@ -1,8 +1,6 @@
 {
     "scan_type": "tvwalk",
     "fold_model": "Ising2",
-    "start_vector": ["1.0", "1.0", "1.0", "1.0"],
-    "end_vector": ["exp(13.5*x)", "exp(13.5*x)", "exp(2.4*x)", "exp(2.4*x)"],
     "length": 8,
     "x_param_range": {
         "name": "tv_distance",

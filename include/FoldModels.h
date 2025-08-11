@@ -77,6 +77,7 @@ public:
 
     int L; ///< Real polymer length (number of monomers)
     bool equilibrium_defined = false; //flag to avoid overwriting the equilibrium distribution
+    bool matrix_fraction_defined = false; //flag to avoid overwriting matrix fractions once written
 
     /// Complete equilibrium table with all sequence-weight combinations
     std::vector<std::tuple<std::string, std::string, std::string, double, double>> EquilibriumTable;
@@ -153,6 +154,12 @@ public:
      * @return Marginal probability P(weight)
      */
     double CalcWfromMatrices(std::string seq);
+
+    /**
+     * @brief Updates epsilon of start_vec_frac to change the tolerance of matrix fraction calculations
+     * @param epsilon new tolerance for matrix fraction calculations   
+     */
+    void UpdateEpsilon(double epsilon);
 };
 
 /**
@@ -414,6 +421,26 @@ public:
     * @return (min_tv,max_tv)
     */
     std::pair<double, double> FindTotalVariationDistanceRange(const std::unordered_map<std::string,double>& targetProb);
+
+
+    /***
+    Virtual parent functions 
+    ***/
+
+    /**
+     * @brief Set up matrix fractions for Bernoulli sequence model
+     * @param bernoulli Probability of state 0 in Bernoulli model
+     * @param epsilon Numerical precision parameter
+     */
+    virtual void getBernoulliMatrixFractions(double bernoulli, double epsilon) = 0;
+
+    /**
+     * @brief Sample sequence and fold from quenched Bernoulli model
+     * @param p Bernoulli parameter for sequence generation
+     * @param gen Random number generator
+     * @return Tuple of (sequence, fold, total_probability)
+     */
+    virtual std::tuple<std::string,std::string, double> SampleQuenchedBernoulli(double p, std::mt19937_64& gen) = 0;
 };
 
 /**
@@ -484,7 +511,7 @@ public:
      * @param seed Random seed for parameter generation
      * @param l Polymer length
      */
-    Ising2(unsigned int seed, int l);
+    Ising2(unsigned int seed, int l, std::string subtype="none");
 
     /**
      * @brief Set up matrix fractions for Bernoulli sequence model
@@ -527,7 +554,7 @@ public:
      * @param p Bernoulli parameter for validation sampling
      * @param trials Number of Monte Carlo trials for validation
      */
-    void VerifyMatrixApproachQuenched(std::unordered_map<std::string,double> SCopyMap, double p, int trials);
+    std::tuple<double,double,double,double,double,double> VerifyMatrixApproachQuenched(std::unordered_map<std::string,double> SCopyMap, double p, int trials);
 
     /**
      * @brief Sample entropy estimates from Bernoulli model
@@ -583,6 +610,23 @@ public:
      * @param l Polymer length
      */
     Ising2S3F(double w00, double w11, double a01, double a10, double v, int l);
+
+    /**
+     * @brief Set up matrix fractions for Bernoulli sequence model
+     * @param bernoulli Probability of state 0 in Bernoulli model
+     * @param epsilon Numerical precision parameter
+     */
+    void getBernoulliMatrixFractions(double bernoulli, double epsilon) {};
+
+    /**
+     * @brief Sample sequence and fold from quenched Bernoulli model
+     * @param p Bernoulli parameter for sequence generation
+     * @param gen Random number generator
+     * @return Tuple of (sequence, fold, total_probability)
+     */
+    std::tuple<std::string,std::string, double> SampleQuenchedBernoulli(double p, std::mt19937_64& gen) {
+        return(std::make_tuple<std::string,std::string, double>("NOT IMPLEMENTED","NOT IMPLEMENTED",0));
+    };
 };
 
 #endif // FOLDMODELS_H

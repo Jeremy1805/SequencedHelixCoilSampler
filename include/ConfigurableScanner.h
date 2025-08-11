@@ -32,7 +32,9 @@ struct Config {
     std::vector<std::string> end_vector;                 ///< Ending vector expressions
     int length;                     ///< Polymer length
     bool x_var_is_log = false; /// If true, then the exponential 2^x is used as the true x variable. 
-    double fixed_error= 0.001; // Needed for scans with fixed errors 
+    double fixed_error= 0.05; // Needed for scans with fixed errors 
+    double fixed_bernoulli = 0.5;
+    int num_templates = 10;
     /**
      * @brief Parameter range specification
      * 
@@ -159,4 +161,49 @@ void performErrorScan(const Config& config, const std::string& outputFilename);
  * @param outputFilename Base name for output file
  */
 void performTVScan(const Config& config, const std::string& outputFilename);
+
+/**
+ * @brief Perform fixed weight, random bernoulli parameter reciprocal matrix verification scan
+ * 
+ * For a fixed energy matrix, test reciprocal matrix method for calculating p(omega)
+ * by varying epsilon threshold and randomizing the bernoulli parameter and sampled fold. 
+ * 
+ * @param config Configuration containing scan parameters and model definition
+ * @param outputFilename Base name for output file
+ */
+void performFWRBLongBernoulliVerify(const Config& config, const std::string& outputFilename);
+
+/**
+ * @brief Perform variable weight, fixed bernoulli parameter reciprocal matrix verification scan
+ * 
+ * For varying energy matrices, test reciprocal matrix method for calculating p(omega)
+ * fixing the bernoulli parameter and sampling a fold randomly. 
+ * 
+ * @param config Configuration containing scan parameters and model definition
+ * @param outputFilename Base name for output file
+ */
+void performVWFBRFLongBernoulliVerify(const Config& config, const std::string& outputFilename);
+
+
+/**
+ * @brief Perform reciprocal matrix verification scan
+ *
+ * @param config Configuration containing scan parameters and template sequences
+ * @param outputFilename Base name for output file
+ */
+void performLongBernVerifyScan(const Config& config, const std::string& outputFilename); 
 #endif
+
+/**
+ * @brief Perform reciprocal matrix verification scan of fold and joint entropy
+ *
+ * For random energy matrices and short lengths, calculate H(S,W) and H(W)
+ * by exact enumeration, by using reciprocal/quenched transfer matrices and
+ * then averaging exactly over all pairs/folds, and by sampling pairs/folds. 
+ * exact_enumeration == exact_average is expected, while |exact_enumeration-sampled_average| 
+ * is expected to be small
+ *
+ * @param config Configuration containing scan parameters and template sequences
+ * @param outputFilename Base name for output file
+ */
+void performLongEntropyVerify(const Config& config, const std::string& outputFilename);

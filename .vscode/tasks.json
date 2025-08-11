@@ -126,7 +126,7 @@
             "dependsOrder": "sequence",
             "dependsOn": [
                 "Build Release",
-                "Run Fixed Error TV Test"
+                "Run RPRT TV Test"
             ],
             "group": {
                 "kind": "build",
@@ -207,6 +207,26 @@
             "command": "./build/main",
             "args": [
                 "./test/config/tvwalk_rprt_test.json",
+                "./build/results"
+            ],
+            "group": "test",
+            "dependsOn": "Prepare Results Directory",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Run FPRTe TV Test",
+            "type": "shell",
+            "command": "./build/main",
+            "args": [
+                "./test/config/tvwalk_fprte_test.json",
                 "./build/results"
             ],
             "group": "test",
@@ -347,6 +367,27 @@
             "problemMatcher": []
         },
         {
+            "label": "Compare FPRTe TV Results",
+            "type": "shell",
+            "command": "python3",
+            "args": [
+                "scripts/compare_tsv.py",
+                "./build/results/tvwalk_fprte_test_results.tsv",
+                "./test/expected/tvwalk_fprte_expected.tsv"
+            ],
+            "group": "test",
+            "dependsOn": "Run Error Test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "CI: Full Test Suite",
             "dependsOrder": "sequence",
             "dependsOn": [
@@ -357,11 +398,13 @@
                 "Run Fixed Error TV Test",
                 "Run FPRT TV Test",
                 "Run RPRT TV Test",
+                "Run FPRTe TV Test",
                 "Compare Bernoulli Results",
                 "Compare Error Results",
                 "Compare Fixed Error TV Results",
                 "Compare FPRT TV Results",
-                "Compare RPRT TV Results"
+                "Compare RPRT TV Results",
+                "Compare FPRTe TV Results"
             ],
             "group": "build",
             "presentation": {

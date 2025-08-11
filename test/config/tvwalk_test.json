@@ -24,5 +24,6 @@
     },
     "x_var_is_log": false,
     "templates": ["00000000"],
-    "scan_subtype": "fixed_error" 
+    "scan_subtype": "fixed_error",
+    "fixed_error": 0.001 
 }
