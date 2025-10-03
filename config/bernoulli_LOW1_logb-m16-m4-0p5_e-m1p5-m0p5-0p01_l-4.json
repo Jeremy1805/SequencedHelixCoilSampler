@@ -1,0 +1,26 @@
+{
+    "scan_type": "bernoulli",
+    "fold_model": "Ising2",
+    "energy_matrix": [
+        ["exp(4.0)", "exp(4.0)", "exp(4.0)", "exp(4.0)"],
+        ["exp(2.0)", "exp(2.0)", "exp(2.0)", "exp(2.0)"],
+        ["exp(-2.0+x)", "exp(-2.0+x)", "exp(6.0+x)", "exp(-2.0+x)"],
+        ["exp(-2.0+x)", "exp(-2.0+x)", "exp(-2.0+x)", "exp(-2.0+x)"] 
+    ],
+    "start_vector": ["1.0", "1.0", "1.0", "1.0"],
+    "end_vector": ["1.0", "1.0", "1.0", "1.0"],
+    "length": 4,
+    "x_param_range": {
+        "name": "log_bernoulli_param",
+        "start": -16,
+        "end": -4,
+        "step": 0.5
+    },
+    "y_param_range": {
+        "name": "eps",
+        "start": -1.5,
+        "end": -0.5,
+        "step": 0.01
+    },
+    "x_var_is_log": true
+}

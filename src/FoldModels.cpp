@@ -121,18 +121,18 @@ void GFold::getPSWMatrices() {
     EqProbList.resize(L);
     
     EqProbList[L-1] = CondProb_L_gvn_Lm1;
-    std::cout << EqProbList[L-1] << std::endl;
-    std::cout <<std::endl;
+    //std::cout << EqProbList[L-1] << std::endl;
+    //std::cout <<std::endl;
     for (int i = L-2; i > 0; i--) {
         EqProbList[i] = RowNormalize(multiplytoColVec(EqSWMatrix,backward_iter_vec));
         backward_iter_vec = EqSWMatrix*backward_iter_vec;
-        std::cout << EqProbList[i] << std::endl;
-        std::cout <<std::endl;
+        //std::cout << EqProbList[i] << std::endl;
+        //std::cout <<std::endl;
     }
 
     EqProbList[0] = RowNormalize(multiplytoColVec(EqSWstart,backward_iter_vec));
-    std::cout << EqProbList[0] << std::endl;
-    std::cout <<std::endl;
+    //std::cout << EqProbList[0] << std::endl;
+    //std::cout <<std::endl;
 }
 
 double GFold::CalcPSWfromMatrices(std::string seq) {
@@ -757,7 +757,7 @@ double IsingVar::CalcWCopyfromMatrixFrac(std::string seq) {
     for (int i = 1; i < L; i++) { 
          running = running * indep_mat_frac.slice(IsingWSlices[seq[i-1]],IsingWSlices[seq[i]]);
     }
-    std::cout << running(0,0).ls.size() << std::endl;
+
     Matrix<MatrixFraction> sliced_end = end_vec_frac.slice(IsingWSlices[seq[L-1]],{0});
     double result = 0.0;
     for (size_t j = 0; j < sliced_end.rows; j++){
@@ -766,10 +766,93 @@ double IsingVar::CalcWCopyfromMatrixFrac(std::string seq) {
     return(result);
 }
 
+const double Ising2::CalcWCopyLimit(std::string seq, double p1) {
+    double p0 = 1.0-p1;
+
+    std::vector<int> zeroLengths;
+    
+    // Return 0 if "11" pattern is found
+    if (seq.find("11") != std::string::npos) {
+        return 0.0;
+    }
+
+    // If no "00" is found, consider probabilities of alternating 0/1 sequences. 
+    if (seq.find("00") == std::string::npos) {
+        if (seq.length() % 2 == 0) {
+            return pow(p1,seq.length()/2)*pow(p0,seq.length()/2);
+        } else {
+            return 0.5*pow(p1,(seq.length()+1)/2)*pow(p0,(seq.length()-1)/2) + 0.5*pow(p0,(seq.length()+1)/2)*pow(p1,(seq.length()-1)/2); 
+        }
+    }
+
+    int currentZeroLength = 0;
+    
+    // Iterate only through interior characters (skip first and last)
+    for (size_t i = 0; i < seq.length(); i++) {
+        char c = seq[i];
+        if (c == '0') {
+            currentZeroLength++;
+        } else {
+            // If we hit a non-zero and were counting zeros, save the length
+            if (currentZeroLength > 0) {
+                zeroLengths.push_back(currentZeroLength);
+                currentZeroLength = 0;
+            }
+        }
+    }
+    
+    // Don't forget the last sequence if it ends with zeros
+    if (currentZeroLength > 0) {
+        zeroLengths.push_back(currentZeroLength);
+    }
+    
+
+    // Return 0 if no zero sequences found
+    if (zeroLengths.empty()) {
+        return 0.0;
+    }
+
+    Eigen::RowVectorXd running(2);
+    Eigen::MatrixXd mat(2,2);
+
+    if (seq[0] == '0') {
+        int len = zeroLengths[0];
+        running(0) = pow(p0,len);
+        running(1) = pow(p1,len);
+    } else {
+        int len = zeroLengths[0];
+        running(0) = p1*pow(p0,len);
+        running(1) = p0*pow(p1,len);
+    }
+    
+    Eigen::VectorXd final(2);
+    if (seq[seq.length()-1] == '0') {
+        final(0)=1;
+        final(1)=1;
+    } else {
+        final(0)=p1;
+        final(1)=p0;
+    }
+
+    // Run the loop from zeroLengths[1] onwards
+    for (int i = 1; i < zeroLengths.size(); i++) {
+        int len = zeroLengths[i];
+        mat(0,0) = pow(p0, len)*p1;
+        mat(0,1) = pow(p1, len)*p0;
+        mat(1,0) = pow(p0, len+1);
+        mat(1,1) = pow(p1, len)*p0;
+        running = running * mat;
+    }
+
+    double result = running * final;  // Explicit conversion for clarity
+    return result;
+}
+
 std::tuple<int,double> IsingVar::CalcWCopyandVectorComplexity(std::string seq) {
     Matrix<VectorFractionList> running = start_vec_frac.slice({0},IsingWSlices[seq[0]]);
     for (int i = 1; i < L; i++) { 
         running = running * indep_mat_frac.slice(IsingWSlices[seq[i-1]],IsingWSlices[seq[i]]);
+        std::cout << i << ": " << running(0,0).ls.size() + running(0,1).ls.size() <<std::endl;
     }
     Matrix<MatrixFraction> sliced_end = end_vec_frac.slice(IsingWSlices[seq[L-1]],{0});
     double result = 0.0;
@@ -1285,7 +1368,7 @@ Ising2::Ising2(unsigned int seed, int l, std::string subtype) {
         }
         std::cout << EqSWMatrix <<std::endl;
     } else {
-    // Fill the matrix with random integers
+    // Fill the matrix with random doubles
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 4; j++) {
                 EqSWMatrix(i, j) = dist(gen);
@@ -1396,7 +1479,26 @@ std::vector<std::string> Ising2::SampleNBiasedBernoulliSequence(double p, int N,
     return(sampled_sequences);
 }
 
-std::tuple<double,double,double,double,double,double> Ising2::VerifyMatrixApproachQuenched(std::unordered_map<std::string,double> SCopyMap, double p, int trials) {
+std::tuple<double,double> Ising2::EstEntropyRecMat(double p, int trials, int seed) {
+    
+    getPSWMatrices();
+
+    double joint_entropy_est = 0.0;
+    double fold_entropy_est = 0.0;
+
+    std::random_device rd;
+    std::mt19937_64 gen(seed);
+
+    for (int i = 0; i < trials; i++) {
+        auto sample = SampleQuenchedBernoulli(p, gen);
+        joint_entropy_est += 1.0/double(trials)*std::get<2>(sample);
+        fold_entropy_est += -1.0/double(trials)*log(CalcWCopyfromMatrixFrac(std::get<1>(sample)));
+    }
+   
+    return(std::tuple<double,double>(joint_entropy_est,fold_entropy_est));
+}
+
+std::tuple<double,double,double,double,double,double> Ising2::VerifyMatrixApproachQuenched(std::unordered_map<std::string,double> SCopyMap, double p, int trials, int seed) {
     std::cout << "Setting up matrices..." << std::endl;
     
     getPSWMatrices();
@@ -1456,12 +1558,13 @@ std::tuple<double,double,double,double,double,double> Ising2::VerifyMatrixApproa
         }
         fold_entropy_matrix_exact += -calculated*log(calculated);
     }
+    std::cout << "W Quenched Verified, now proceeding to sampled entropies.."<< std::endl;
 
     double joint_entropy_est = 0.0;
     double fold_entropy_est = 0.0;
 
     std::random_device rd;
-    std::mt19937_64 gen(rd());
+    std::mt19937_64 gen(seed);
 
     for (int i = 0; i < trials; i++) {
         auto sample = SampleQuenchedBernoulli(p, gen);
@@ -1472,6 +1575,57 @@ std::tuple<double,double,double,double,double,double> Ising2::VerifyMatrixApproa
     std::cout << "Estimated Joint Entropy of " << joint_entropy_est << " Versus True " << joint_entropy_matrix_exact << "/" << JointcopyEntropy <<std::endl;
     std::cout << "Estimated Fold Entropy of " << fold_entropy_est << " Versus True " <<  fold_entropy_matrix_exact << "/"<< FoldcopyEntropy <<std::endl;
     return(std::tuple<double,double,double,double,double,double>(joint_entropy_est,joint_entropy_matrix_exact,JointcopyEntropy,fold_entropy_est,fold_entropy_matrix_exact,FoldcopyEntropy));
+}
+
+std::vector<std::tuple<std::string,double,double,double>> Ising2::VerifyMatrixApproachAllFolds(std::unordered_map<std::string,double> SCopyMap,  double p) {
+    std::vector<std::tuple<std::string,double,double,double>> results;
+
+    std::cout << "Setting up matrices..." << std::endl;
+    
+    getPSWMatrices();
+
+    std::cout << "Calculating quenched copy map..." << std::endl;
+    
+    std::unordered_map<std::string, double> WCopyMap; 
+        WCopyMap.reserve(WEquilibriumMap.size());
+    
+    for (const auto& [key, value] : WEquilibriumMap) {
+        WCopyMap[key] = 0.0;
+    }
+
+    std::unordered_map<std::string,std::vector<Eigen::MatrixXd>> SProbLists;
+
+    for (const auto& sdata : SCopyMap) {
+        const auto& s_state = std::get<0>(sdata);
+        SProbLists[s_state] = getQuenchedProbList(s_state);
+    }
+
+    for (const auto& swdata : EquilibriumTable) {
+        const double peqSW = std::get<3>(swdata);
+        const auto& s_state = std::get<1>(swdata);
+        const auto& w_state = std::get<2>(swdata);
+        const double s_copy_prob = SCopyMap.at(s_state);
+        const double s_eq_prob = SEquilibriumMap.at(s_state);
+        
+        const double pcopySW = peqSW * s_copy_prob / s_eq_prob;
+        WCopyMap[w_state] += pcopySW;
+
+        const double calculated = SCopyMap[s_state]*evalQuenchedProbList(w_state, SProbLists[s_state]);
+        //if (abs(calculated-pcopySW) > pow(10.0,-10)) {
+        //    throw std::runtime_error("VERIFICATION FAILED! ERROR OF " 
+        //        + std::to_string(abs(calculated-pcopySW)) + " OBTAINED!");
+        //}
+    }
+
+    std::cout << "SW Quenched Verified, now moving on to W Quenched.." << std::endl;
+
+    for (const auto& [w_state, value] : WCopyMap) {
+        double calculated = CalcWCopyfromMatrixFrac(w_state);
+        double calculated_lim = CalcWCopyLimit(w_state,p);
+        results.push_back(std::make_tuple(w_state, value, calculated, calculated_lim));
+    }
+
+    return(results);
 }
 
 std::tuple<double,double,double,double> Ising2::SampleBernoulliEntropies(double p, int trials, int seed) {

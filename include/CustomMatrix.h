@@ -381,6 +381,8 @@ public:
         } else if (den(0) != 0) {
             // Normalize on creation
             double old_den0 = den(0);
+            //double mag = std::sqrt(std::pow(den(0),2)+std::pow(den(1),2));
+            //double mag = den(0)+den(1);
             den = den/old_den0;
             num = num/old_den0;
         }
@@ -492,10 +494,11 @@ struct VectorFractionCompare {
         
         for (int i = 0; i < a_den.cols(); i++) {
             double diff = a_den(i) - b_den(i);
-            if (std::abs(diff) > epsilon) {
+            if ( (std::abs(diff) > epsilon*a_den(i)) || (std::abs(diff) > epsilon*b_den(i))  ) {
                 return diff < 0;
             }
         }
+        
         return false;  // Equal or nearly equal vectors
     }
 };

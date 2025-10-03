@@ -34,7 +34,10 @@ struct Config {
     bool x_var_is_log = false; /// If true, then the exponential 2^x is used as the true x variable. 
     double fixed_error= 0.05; // Needed for scans with fixed errors 
     double fixed_bernoulli = 0.5;
+    double fixed_tolerance=1e-5;
     int num_templates = 10;
+    int num_trials = 30;
+    int target_bases = 9000;
     /**
      * @brief Parameter range specification
      * 
@@ -207,3 +210,38 @@ void performLongBernVerifyScan(const Config& config, const std::string& outputFi
  * @param outputFilename Base name for output file
  */
 void performLongEntropyVerify(const Config& config, const std::string& outputFilename);
+
+
+/**
+ * @brief Perform random reciprocal matrix verification scan for all folds
+ * 
+ * Forvarying energy matrices and lengths, obtain the full ensemble of folds from 
+ * brute force calculation versus from the reciprocal matrix method. 
+ * 
+ * @param config Configuration containing scan parameters and model definition
+ * @param dir_and_prefix Base directory and name for output file
+ */
+
+void performLongAllFoldVerify(const Config& config, const std::string& dir_and_prefix);
+
+/**
+ * @brief Perform variable weight, random bernoulli parameter reciprocal matrix verification scan
+ * 
+ * For varying energy matrices and fixed bernoulli parameter, test reciprocal matrix method for calculating p(omega)
+ * by varying epsilon threshold and sampling a random fold. 
+ * 
+ * @param config Configuration containing scan parameters and model definition
+ * @param outputFilename Base name for output file
+ */
+void performVWFBLongBernoulliVerify(const Config& config, const std::string& outputFilename);
+
+/**
+ * @brief Perform variable weight, fixed bernoulli parameter reciprocal matrix length scan
+ * 
+ * For varying energy matrices and fixed bernoulli parameter, test reciprocal matrix method for calculating p(omega)
+ * by varying epsilon threshold and sampling a random fold. 
+ * 
+ * @param config Configuration containing scan parameters and model definition
+ * @param outputFilename Base name for output file
+ */
+void performVWFBLongLengthVary(const Config& config, const std::string& outputFilename);

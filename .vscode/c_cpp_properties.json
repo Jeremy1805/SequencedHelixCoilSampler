@@ -1,0 +1,18 @@
+{
+    "configurations": [
+        {
+            "name": "Linux", // or "Mac" or "Win32"
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/usr/include/eigen3",          // Common Linux location
+                "/usr/local/Cellar/eigen/*/include/eigen3" // macOS alternative
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/gcc", // Adjust to your compiler
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "linux-gcc-x64" // Adjust for your platform
+        }
+    ],
+    "version": 4
+}

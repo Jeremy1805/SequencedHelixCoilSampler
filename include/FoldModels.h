@@ -549,12 +549,19 @@ public:
     static std::vector<std::string> SampleNBiasedBernoulliSequence(double p, int N, int L, unsigned int seed);
 
     /**
-     * @brief Verify matrix calculations for quenched disorder model
+     * @brief Verify matrix entropy calculations for quenched disorder model
      * @param SCopyMap Input sequence distribution
      * @param p Bernoulli parameter for validation sampling
      * @param trials Number of Monte Carlo trials for validation
      */
-    std::tuple<double,double,double,double,double,double> VerifyMatrixApproachQuenched(std::unordered_map<std::string,double> SCopyMap, double p, int trials);
+    std::tuple<double,double,double,double,double,double> VerifyMatrixApproachQuenched(std::unordered_map<std::string,double> SCopyMap, double p, int trials, int seed);
+
+    /**
+     * @brief Verify matrix fold probability calculations for quenched disorder model. Exact and calculated fold probability output for all folds. 
+     * @param SCopyMap Input sequence distribution
+     * @param p Bernoulli parameter for validation sampling
+     */
+    std::vector<std::tuple<std::string,double,double,double>> VerifyMatrixApproachAllFolds(std::unordered_map<std::string,double> SCopyMap, double p);
 
     /**
      * @brief Sample entropy estimates from Bernoulli model
@@ -564,6 +571,10 @@ public:
      * @return Tuple of (joint_mean, joint_stddev, fold_mean, fold_stddev)
      */
     std::tuple<double,double,double,double> SampleBernoulliEntropies(double p, int trials, int seed);
+
+    std::tuple<double,double> EstEntropyRecMat(double p, int trials, int seed);
+
+    static const double CalcWCopyLimit(std::string seq, double p1); 
 };
 
 /**

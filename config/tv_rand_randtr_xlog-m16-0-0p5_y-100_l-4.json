@@ -1,0 +1,19 @@
+{
+    "scan_type": "tvwalk",
+    "fold_model": "Ising2",
+    "length": 4,
+    "x_param_range": {
+        "name": "log_tv_distance",
+        "start": -16,
+        "end": 0.01,
+        "step": 0.5
+    },
+    "y_param_range": {
+        "name": "seed",
+        "start": 1000,
+        "end": 1000001,
+        "step": 1000
+    },
+    "x_var_is_log": true,
+    "scan_subtype": "rand_param_rand_traj" 
+}

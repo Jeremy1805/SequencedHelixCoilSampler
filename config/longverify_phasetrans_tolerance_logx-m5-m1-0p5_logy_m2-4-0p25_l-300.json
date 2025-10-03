@@ -1,0 +1,28 @@
+{
+    "scan_type": "longbernoulliverify",
+    "fold_model": "Ising2",
+    "scan_subtype": "var_weight_fixed_bern_accuracy",
+    "energy_matrix": [
+       ["exp(log(2.0)*x)", "1.0", "exp(-log(4.0)*x)", "1.0"],
+        ["1.0", "1.0", "1.0", "exp(-log(4.0)*x)"], 
+        ["exp(-log(4.0)*x)", "1.0", "exp(log(3.0)*x)", "1.0"],
+        ["1.0", "exp(-log(4.0)*x)", "1.0", "1.0"]
+    ],
+    "start_vector": ["1.0", "1.0", "1.0", "1.0"],
+    "end_vector": ["1.0", "1.0", "1.0", "1.0"],
+    "length": 300,
+    "x_param_range": {
+        "name": "log_tolerance",
+        "start": -5.0,
+        "end": -0.99,
+        "step": 0.5
+    },
+    "y_param_range": {
+        "name": "beta",
+        "start": -2,
+        "end": 4,
+        "step": 0.25
+    },
+    "x_var_is_log": true,
+    "fixed_bernoulli": 0.5
+}

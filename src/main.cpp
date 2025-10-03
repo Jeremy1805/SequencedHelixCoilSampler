@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
         std::filesystem::path filePath(configFilename);
         std::string baseName = filePath.stem().string();
         std::string outputFilename = (std::filesystem::path(outputDirectory) / (baseName + "_results.tsv") ).string();
-        
+
         // Print configuration summary
         std::cout << "=== Configuration Summary ===" << std::endl;
         std::cout << "Config file: " << configFilename << std::endl;
@@ -84,6 +84,13 @@ int main(int argc, char* argv[]) {
             performLongBernVerifyScan(config,outputFilename);
         } else if (config.scan_type == "longentropyverify"){
             performLongEntropyVerify(config,outputFilename);
+        } else if (config.scan_type == "longlengthvary"){
+            performVWFBLongLengthVary(config,outputFilename);
+        } else if (config.scan_type == "longallfoldverify"){
+            std::string dir = outputDirectory + "/"+ baseName;    
+            // Create output directory if it doesn't exist
+            std::filesystem::create_directories(dir);
+            performLongAllFoldVerify(config,dir+"/"+baseName);
         } else {
             throw std::runtime_error("Unknown scan type: " + config.scan_type + 
                                    ". Supported types: bernoulli, error, tvwalk, longbernoulliverify, longentropyverify");

@@ -1,0 +1,27 @@
+{
+    "scan_type": "tvwalk",
+    "fold_model": "Ising2",
+    "energy_matrix": [
+        ["exp(2)", "1", "1", "1"],
+        ["1", "1", "1", "1"], 
+        ["1", "1", "exp(2)", "1"],
+        ["1", "1", "1", "1"]
+    ],
+    "start_vector": ["1.0", "1.0", "1.0", "1.0"],
+    "end_vector": ["1.0", "1.0", "1.0", "1.0"],
+    "length": 11,
+    "x_param_range": {
+        "name": "tv_distance",
+        "start": 0.001,
+        "end": 1.01,
+        "step": 0.05
+    },
+    "y_param_range": {
+        "name": "seed",
+        "start": 1000,
+        "end": 2001,
+        "step": 1000
+    },
+    "x_var_is_log": false,
+    "scan_subtype": "fixed_param_rand_temp"
+}

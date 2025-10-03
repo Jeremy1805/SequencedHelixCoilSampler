@@ -63,8 +63,9 @@ Config parseConfig(const std::string& filename) {
     // Parse basic fields
     config.scan_type = j.at("scan_type").get<std::string>();
     config.fold_model = j.at("fold_model").get<std::string>();
-    config.length = j.at("length").get<int>();
-    
+    if (config.scan_type != "longlengthvary" && config.scan_type != "longallfoldverify") {
+        config.length = j.at("length").get<int>();
+    }
     if (config.scan_type == "longentropyverify"){
         energy_params_required = false;
     }
@@ -84,11 +85,20 @@ Config parseConfig(const std::string& filename) {
     if (j.contains("fixed_bernoulli")) {
         config.fixed_bernoulli = j.at("fixed_bernoulli").get<double>();
     }
-     if (j.contains("num_templates")) {
+    if (j.contains("num_templates")) {
         config.num_templates = j.at("num_templates").get<int>();
+    }
+    if (j.contains("num_trials")) {
+        config.num_trials = j.at("num_trials").get<int>();
     }
     if (j.contains("x_var_is_log")) {
         config.x_var_is_log = j.at("x_var_is_log").get<bool>();
+    }
+    if (j.contains("fixed_tolerance")) {
+        config.fixed_tolerance = j.at("fixed_tolerance").get<double>();
+    }
+    if (j.contains("target_bases")) {
+        config.target_bases = j.at("target_bases").get<double>();
     }
     // Parse parameter ranges
     auto x_param = j.at("x_param_range");
@@ -631,7 +641,7 @@ void performTVScan(const Config& config, const std::string& outputFilename) {
  * @param outputFilename Base name for output file
  */
 void performFWRBLongBernoulliVerify(const Config& config, const std::string& outputFilename) {
-    std::vector<std::tuple<double,int,double,double>> tbl;
+    std::vector<std::tuple<double,int,int,double,double>> tbl;
     
     for (int y_param = config.y_param_range.start; y_param < config.y_param_range.end; y_param += config.y_param_range.step) {
         
@@ -679,12 +689,119 @@ void performFWRBLongBernoulliVerify(const Config& config, const std::string& out
                 ref = std::get<1>(res);
                 first = false;
             }
-            tbl.push_back(std::tuple_cat(std::make_tuple(x_param),res,std::make_tuple(ref)));
+            tbl.push_back(std::tuple_cat(std::make_tuple(x_param),std::make_tuple(y_param),res,std::make_tuple(ref)));
             std::cout << "results: " << x_param << "/"  << std::get<0>(res) << "/" << std::get<1>(res) << "/" << ref << "/" << std::get<1>(res) -  ref <<std::endl;
         }
     }
 
-    saveTuplesToCSV(tbl, outputFilename,{"LogTolerance","VectorDirNum","pW","refpW"});
+    saveTuplesToCSV(tbl, outputFilename,{"LogTolerance","seed","VectorDirNum","pW","refpW"});
+    
+    std::cout << "Long Verification Completed. Results saved to: " << outputFilename << std::endl;
+}
+
+/**
+ * @brief Perform variable weight, fixed bernoulli parameter reciprocal matrix length scan
+ * 
+ * For varying energy matrices and fixed bernoulli parameter, test reciprocal matrix method for calculating p(omega)
+ * by varying epsilon threshold and sampling a random fold. 
+ * 
+ * @param config Configuration containing scan parameters and model definition
+ * @param outputFilename Base name for output file
+ */
+void performVWFBLongLengthVary(const Config& config, const std::string& outputFilename) {
+    std::vector<std::tuple<double,double,double,double>> tbl;
+    
+    for (double y_param = config.y_param_range.start; y_param < config.y_param_range.end; y_param += config.y_param_range.step) {
+        for (int x_param = config.x_param_range.start; x_param < config.x_param_range.end; x_param += config.x_param_range.step) {
+
+            // First, define the model
+            std::map<std::string, double> params;
+            params["x"] = std::pow(2,y_param); //power 2 is convenient here
+            
+            if (config.fold_model != "Ising2") {
+                throw std::runtime_error("Unsupported fold model: " + config.fold_model);
+            } 
+
+            auto matrix = buildMatrix(config.energy_matrix, params);
+            auto start_vec = buildVector(config.start_vector, params);
+            auto end_vec = buildVector(config.end_vector, params);
+            
+            Ising2 model(matrix, start_vec.transpose(), end_vec, x_param);
+            
+            double ber = config.fixed_bernoulli;
+            
+            std::cout << "Bernoulli parameters sampled, now defining matrix reciprocals..." <<std::endl;
+            // Third, define the matrix fractions
+            model.getBernoulliMatrixFractions(ber,config.fixed_tolerance);
+            
+            std::tuple<double,double> res = model.EstEntropyRecMat(ber, int(config.target_bases/x_param)+1, 0);
+            
+            std::cout << "Processing results..." <<std::endl;
+                
+            tbl.push_back(std::tuple_cat(std::make_tuple(x_param),std::make_tuple(y_param),res));
+                std::cout << "results: " << x_param << "/"  << std::get<0>(res) << "/" << std::get<1>(res) <<std::endl;
+        }
+    }
+    
+    saveTuplesToCSV(tbl, outputFilename,{"Length","Logbeta","HSW","HW"});
+    
+    std::cout << "Long Length Vary Completed. Results saved to: " << outputFilename << std::endl;
+}
+/**
+ * @brief Perform variable weight, random bernoulli parameter reciprocal matrix verification scan
+ * 
+ * For varying energy matrices and fixed bernoulli parameter, test reciprocal matrix method for calculating p(omega)
+ * by varying epsilon threshold and sampling a random fold. 
+ * 
+ * @param config Configuration containing scan parameters and model definition
+ * @param outputFilename Base name for output file
+ */
+void performVWFBLongBernoulliVerify(const Config& config, const std::string& outputFilename) {
+    std::vector<std::tuple<double,double,int,double,double>> tbl;
+    
+    for (double y_param = config.y_param_range.start; y_param < config.y_param_range.end; y_param += config.y_param_range.step) {
+        
+        // First, define the model
+        std::map<std::string, double> params;
+        params["x"] = std::pow(2,y_param); //power 2 is convenient here
+
+        std::unique_ptr<IsingVar> model = nullptr;
+        model = ModelCreator::createModel(config, params);
+        
+        double ber = config.fixed_bernoulli;
+        
+        std::cout << "Bernoulli parameters sampled, now defining matrix reciprocals..." <<std::endl;
+        // Third, define the matrix fractions
+        model->getBernoulliMatrixFractions(ber,1e-300);
+        
+        std::cout << "Sampling fold..." <<std::endl;
+        // Fourth, sample a fold. 
+        std::mt19937_64 gen(0); // standard seed 0
+        std::tuple<std::string,std::string, double> tup = model->SampleQuenchedBernoulli(ber, gen); 
+        std::cout << "Fold sampled, now calculating fold probabilities..." <<std::endl;
+        
+        bool first = true;
+        double ref = 0.0;
+        for (double x_param = config.x_param_range.start; x_param < config.x_param_range.end; x_param += config.x_param_range.step) {
+            double true_x_param;
+            if(config.x_var_is_log){
+                true_x_param = std::pow(10,x_param); // base 10 used for this particular parameter set as it makes more sense for tolerance
+            } else {
+                true_x_param = x_param;
+            }
+            model->UpdateEpsilon(true_x_param);
+            std::tuple<int,double> res = model->CalcWCopyandVectorComplexity(std::get<1>(tup));
+            std::cout << "Processing results..." <<std::endl;
+            if (first) {
+                ref = std::get<1>(res);
+                first = false;
+            }
+            tbl.push_back(std::tuple_cat(std::make_tuple(x_param),std::make_tuple(y_param),res,std::make_tuple(ref)));
+            std::cout << "results: " << x_param << "/"  << std::get<0>(res) << "/" << std::get<1>(res) << "/" << ref << "/" << std::get<1>(res) -  ref <<std::endl;
+        }
+    }
+
+    saveTuplesToCSV(tbl, outputFilename,{"LogTolerance","seed","VectorDirNum","pW","refpW"});
     
     std::cout << "Long Verification Completed. Results saved to: " << outputFilename << std::endl;
 }
@@ -744,6 +861,48 @@ void performVWVBRFLongBernoulliVerify(const Config& config, const std::string& o
 }
 
 /**
+ * @brief Perform random reciprocal matrix verification scan for all folds
+ * 
+ * Forvarying energy matrices and lengths, obtain the full ensemble of folds from 
+ * brute force calculation versus from the reciprocal matrix method. 
+ * 
+ * @param config Configuration containing scan parameters and model definition
+ * @param dir_and_prefix Base directory and name for output file
+ */
+
+void performLongAllFoldVerify(const Config& config, const std::string& dir_and_prefix){    
+    for (double y_param = config.y_param_range.start; y_param < config.y_param_range.end; y_param += config.y_param_range.step) {    
+        // First, define a model
+        for (double x_param = config.x_param_range.start; x_param < config.x_param_range.end; x_param += config.x_param_range.step) {
+        
+            if  (config.fold_model!="Ising2") {
+                throw std::runtime_error("long_all_fold_verify reciprocal matrix verification scan only takes Ising2 as model.");
+            }
+            
+            std::map<std::string, double> params;
+            params["x"] = std::pow(2,y_param);
+
+            auto matrix = buildMatrix(config.energy_matrix, params);
+            auto start_vec = buildVector(config.start_vector, params);
+            auto end_vec = buildVector(config.end_vector, params);
+            
+            Ising2 model(matrix, start_vec.transpose(), end_vec, x_param);
+
+            double ber = config.fixed_bernoulli;
+
+            model.GetEquilibrumTable();
+            model.getBernoulliMatrixFractions(ber,config.fixed_tolerance);   
+            
+            std::unordered_map<std::string,double> SCopyMap = IsingVar::GenerateBernoulliMap(ber, x_param);
+            std::vector<std::tuple<std::string,double,double,double>> res = model.VerifyMatrixApproachAllFolds(SCopyMap, ber);
+            
+            saveTuplesToCSV(res, dir_and_prefix + "_" + std::to_string(y_param) + "_"+ std::to_string(x_param) + ".tsv" );
+        }
+    }
+    
+}
+
+/**
  * @brief Perform random reciprocal matrix verification scan
  * 
  * For random energy matrices with low rank off diagonal submatrices, 
@@ -754,9 +913,9 @@ void performVWVBRFLongBernoulliVerify(const Config& config, const std::string& o
  * @param outputFilename Base name for output file
  */
 void performRandLowRankLongBernoulliVerify(const Config& config, const std::string& outputFilename){
-    std::vector<std::tuple<double,int,double,double>> tbl;
+    std::vector<std::tuple<double,int,int,double,double>> tbl;
 
-    for (double y_param = config.y_param_range.start; y_param < config.y_param_range.end; y_param += config.y_param_range.step) {    
+    for (int y_param = config.y_param_range.start; y_param < config.y_param_range.end; y_param += config.y_param_range.step) {    
         // First, define a model
         
         if  (config.fold_model!="Ising2") {
@@ -797,12 +956,12 @@ void performRandLowRankLongBernoulliVerify(const Config& config, const std::stri
                 ref = std::get<1>(res);
                 first = false;
             }
-            tbl.push_back(std::tuple_cat(std::make_tuple(x_param),res,std::make_tuple(ref)));
+            tbl.push_back(std::tuple_cat(std::make_tuple(x_param),std::make_tuple(y_param),res,std::make_tuple(ref)));
             std::cout << "results: " << x_param << "/"  << std::get<0>(res) << "/" << std::get<1>(res) << "/" << ref << "/" << std::get<1>(res) -  ref <<std::endl;
         }
     }
     
-    saveTuplesToCSV(tbl, outputFilename,{"LogTolerance","VectorDirNum","pW","refpW"});
+    saveTuplesToCSV(tbl, outputFilename,{"LogTolerance","seed","VectorDirNum","pW","refpW"});
     
     std::cout << "Long Verification Completed. Results saved to: " << outputFilename << std::endl;
 }
@@ -821,8 +980,11 @@ void performLongBernVerifyScan(const Config& config, const std::string& outputFi
         performFWRBLongBernoulliVerify(config, outputFilename);
     } else if (config.scan_subtype == "var_weight_var_bern_fold_sample") {
         performVWVBRFLongBernoulliVerify(config, outputFilename);
-    } else if (config.scan_subtype == "rand_all_low_rank")
+    } else if (config.scan_subtype == "rand_all_low_rank"){
         performRandLowRankLongBernoulliVerify(config, outputFilename);
+    } else if (config.scan_subtype == "var_weight_fixed_bern_accuracy"){
+        performVWFBLongBernoulliVerify(config, outputFilename);
+    }
     else {
         throw std::runtime_error("Long verify scan must run with one scan subtype from "
                                "'fixed_weight_rand_ber_fold', 'var_weight_fixed_bern_fold_sample','rand_all_low_rank'");
@@ -842,7 +1004,7 @@ void performLongBernVerifyScan(const Config& config, const std::string& outputFi
  * @param outputFilename Base name for output file
  */
 void performLongEntropyVerify(const Config& config, const std::string& outputFilename) {
-    std::cout << "Starting Long Bernoulli scan..." << std::endl;
+    std::cout << "Starting Long Entropy scan..." << std::endl;
     
     std::vector<std::tuple<double,int,double,double,double,double,double,double>> results;
     
@@ -867,9 +1029,10 @@ void performLongEntropyVerify(const Config& config, const std::string& outputFil
             Ising2 model(y_param,config.length); // randomized fold weights
 
             // Generate equilibrium table and analyze
+            std::cout << "Generating Internal Matrices.." <<std::endl;
             model.GetEquilibrumTable();
             model.getBernoulliMatrixFractions(true_x_param,1e-300);
-            auto entry = model.VerifyMatrixApproachQuenched(SCopyMap,true_x_param,100);
+            auto entry = model.VerifyMatrixApproachQuenched(SCopyMap,true_x_param,config.num_trials,y_param+123456);
             
             // Store results
             results.push_back(std::tuple_cat(std::make_tuple(x_param), std::make_tuple(y_param), entry));
@@ -887,5 +1050,68 @@ void performLongEntropyVerify(const Config& config, const std::string& outputFil
     };
     
     saveTuplesToCSV(results, outputFilename, headers);
-    std::cout << "Long Bernoulli scan completed. Results saved to: " << outputFilename << std::endl;
+    std::cout << "Long Entropy scan completed. Results saved to: " << outputFilename << std::endl;
+}
+
+/**
+ * @brief Perform reciprocal matrix verification scan of fold and joint entropy
+ *
+ * For random energy matrices and short lengths, calculate H(S,W) and H(W)
+ * by exact enumeration, by using reciprocal/quenched transfer matrices and
+ * then averaging exactly over all pairs/folds, and by sampling pairs/folds. 
+ * exact_enumeration == exact_average is expected, while |exact_enumeration-sampled_average| 
+ * is expected to be small
+ *
+ * @param config Configuration containing scan parameters and template sequences
+ * @param outputFilename Base name for output file
+ */
+void performLengthEntropyVerify(const Config& config, const std::string& outputFilename) {
+    std::cout << "Starting Long Entropy scan..." << std::endl;
+    
+    std::vector<std::tuple<double,int,double,double,double,double,double,double>> results;
+    
+    // Nested loops over parameter ranges
+    for (int x_param = config.x_param_range.start; x_param < config.x_param_range.end; x_param += config.x_param_range.step) {
+        // Generate Bernoulli distribution for this x_param value
+        std::unordered_map<std::string,double> SCopyMap;
+        SCopyMap = IsingVar::GenerateBernoulliMap(config.fixed_bernoulli, x_param);
+        
+        for (int y_param = config.y_param_range.start; y_param < config.y_param_range.end; y_param += config.y_param_range.step) {
+            
+            std::map<std::string, double> params;
+            params["x"] = std::pow(2,y_param); //power 2 is convenient here
+            
+            if (config.fold_model != "Ising2") {
+                throw std::runtime_error("Unsupported fold model: " + config.fold_model);
+            } 
+
+            auto matrix = buildMatrix(config.energy_matrix, params);
+            auto start_vec = buildVector(config.start_vector, params);
+            auto end_vec = buildVector(config.end_vector, params);
+            
+            Ising2 model(matrix, start_vec.transpose(), end_vec, x_param);
+
+            // Generate equilibrium table and analyze
+            std::cout << "Generating Internal Matrices.." <<std::endl;
+            model.GetEquilibrumTable();
+            model.getBernoulliMatrixFractions(config.fixed_bernoulli,config.fixed_tolerance);
+            auto entry = model.VerifyMatrixApproachQuenched(SCopyMap,config.fixed_bernoulli,int(config.target_bases/x_param),0);
+            
+            // Store results
+            results.push_back(std::tuple_cat(std::make_tuple(x_param), std::make_tuple(y_param), entry));
+            
+            std::cout << "Completed: " << config.x_param_range.name << "=" << x_param 
+                     << ", " << config.y_param_range.name << "=" << y_param << std::endl;
+        }
+    }
+    
+    // Save results
+    std::vector<std::string> headers = {
+        config.x_param_range.name, config.y_param_range.name,
+        "HJointEst", "HJointInf", "HJointTrue",
+        "HWEst", "HWInf", "HWTrue"
+    };
+    
+    saveTuplesToCSV(results, outputFilename, headers);
+    std::cout << "Long Entropy scan completed. Results saved to: " << outputFilename << std::endl;
 }
