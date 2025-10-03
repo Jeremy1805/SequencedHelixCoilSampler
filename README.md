@@ -13,7 +13,7 @@ A C++ implementation for analyzing the information thermodynamics of sequence-to
 ## Scientific Background
 
 ### Information Thermodynamics of Joint Copying-folding Systems
-Polymer copying is fundamentally nonequilibrium (see Ouldridge 2017 and Poulton 2019 to understand why). On the other hand, polymer polfing is often envisioned as anequilibrium process. The question then, is as follows: **How is the nonequilibrium work exerted during copying utilized in folding?**
+Polymer copying is fundamentally nonequilibrium (see Ouldridge 2017 and Poulton 2019 to understand why). On the other hand, polymer folding is often envisioned as anequilibrium process. The question then, is as follows: **How is the nonequilibrium work exerted during copying utilized in folding?**
 
 ### Zimm-Bragg Model
 We use the Zimm-Bragg helix-coil folding model as a toy model with which to investigate the above question. Briefly, the Zimm-Bragg model has the following features:
